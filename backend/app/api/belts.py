@@ -98,9 +98,17 @@ def load_pulleys():
     ensure_data_files()
     file_path = get_pulleys_path()
     
-    with open(file_path, "r", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        return list(reader)
+    for encoding in ['utf-8-sig', 'gbk', 'gb2312', 'utf-8']:
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                reader = csv.DictReader(f)
+                data = list(reader)
+                if data:
+                    return data
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    
+    raise ValueError(f"无法读取文件 {file_path}，尝试了以下编码：utf-8-sig, gbk, gb2312, utf-8")
 
 
 def load_belts():
@@ -108,17 +116,24 @@ def load_belts():
     ensure_data_files()
     file_path = get_belts_path()
     
-    with open(file_path, "r", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        belts = []
-        for row in reader:
-            belts.append({
-                "name": row["name"],
-                "flat_to_pitch": float(row["flat_to_pitch"]),
-                "pitch_to_effective": float(row["pitch_to_effective"]),
-                "height": float(row["height"])
-            })
-        return belts
+    for encoding in ['utf-8-sig', 'gbk', 'gb2312', 'utf-8']:
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                reader = csv.DictReader(f)
+                belts = []
+                for row in reader:
+                    belts.append({
+                        "name": row["name"],
+                        "flat_to_pitch": float(row["flat_to_pitch"]),
+                        "pitch_to_effective": float(row["pitch_to_effective"]),
+                        "height": float(row["height"])
+                    })
+                if belts:
+                    return belts
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    
+    raise ValueError(f"无法读取文件 {file_path}，尝试了以下编码：utf-8-sig, gbk, gb2312, utf-8")
 
 
 def save_pulleys(data: List[dict]):
@@ -185,34 +200,44 @@ def get_data_info():
 
 @router.get("/export/pulleys")
 def export_pulleys_csv():
-    """导出皮带轮数据（直接读取 CSV 文件）"""
+    """导出皮带轮数据（支持多编码）"""
     ensure_data_files()
     file_path = get_pulleys_path()
     
-    with open(file_path, "r", encoding="utf-8-sig") as f:
-        content = f.read()
+    for encoding in ['utf-8-sig', 'gbk', 'gb2312', 'utf-8']:
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                content = f.read()
+                return StreamingResponse(
+                    iter([content]),
+                    media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=pulleys.csv"}
+                )
+        except (UnicodeDecodeError, UnicodeError):
+            continue
     
-    return StreamingResponse(
-        iter([content]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=pulleys.csv"}
-    )
+    raise HTTPException(status_code=500, detail=f"无法读取文件 {file_path}")
 
 
 @router.get("/export/belts")
 def export_belts_csv():
-    """导出皮带品牌数据（直接读取 CSV 文件）"""
+    """导出皮带品牌数据（支持多编码）"""
     ensure_data_files()
     file_path = get_belts_path()
     
-    with open(file_path, "r", encoding="utf-8-sig") as f:
-        content = f.read()
+    for encoding in ['utf-8-sig', 'gbk', 'gb2312', 'utf-8']:
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                content = f.read()
+                return StreamingResponse(
+                    iter([content]),
+                    media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=belts.csv"}
+                )
+        except (UnicodeDecodeError, UnicodeError):
+            continue
     
-    return StreamingResponse(
-        iter([content]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=belts.csv"}
-    )
+    raise HTTPException(status_code=500, detail=f"无法读取文件 {file_path}")
 
 
 @router.post("/import/pulleys")
