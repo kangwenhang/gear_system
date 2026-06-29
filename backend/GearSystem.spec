@@ -6,13 +6,11 @@ block_cipher = None
 
 backend_dir = Path.cwd()
 frontend_dist = backend_dir / 'frontend_dist'
-data_dir = backend_dir / 'app' / 'data'
 
+# 注意：数据文件现在会在运行时动态创建，不需要打包
 datas = []
 if frontend_dist.exists():
     datas.append((str(frontend_dist), 'frontend_dist'))
-if data_dir.exists():
-    datas.append((str(data_dir), 'app/data'))
 
 hiddenimports = [
     'uvicorn.logging',
