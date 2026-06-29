@@ -34,19 +34,15 @@ DEFAULT_BELTS = [
 
 def get_data_dir():
     """获取数据目录，优先使用运行目录下的 data 文件夹"""
-    # 优先使用运行目录（工作目录）下的 data 文件夹
     work_dir = Path.cwd()
     work_data_dir = work_dir / "data"
     
-    # 如果运行目录有 data 目录，或者 data 目录不存在，就使用运行目录
-    # 这样确保打包后能在运行目录创建数据文件
     if work_data_dir.exists() and work_data_dir.is_dir():
         return work_data_dir
     
     # 开发环境：使用脚本同级目录
     script_dir = Path(__file__).parent.parent / "data"
     if script_dir.exists() and script_dir.is_dir():
-        # 如果脚本目录存在，但运行目录没有，就在运行目录创建
         if not work_data_dir.exists():
             work_data_dir.mkdir(parents=True, exist_ok=True)
         return work_data_dir
@@ -56,44 +52,83 @@ def get_data_dir():
     return work_data_dir
 
 
-def ensure_data_file(filename, default_data):
-    """确保数据文件存在，不存在则创建默认文件"""
+def get_pulleys_path():
+    """获取皮带轮 CSV 文件路径"""
+    return get_data_dir() / "pulleys.csv"
+
+
+def get_belts_path():
+    """获取皮带品牌 CSV 文件路径"""
+    return get_data_dir() / "belts.csv"
+
+
+def ensure_data_files():
+    """确保 CSV 数据文件存在，不存在则创建"""
     data_dir = get_data_dir()
-    file_path = data_dir / filename
     
-    if not file_path.exists():
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(default_data, f, ensure_ascii=False, indent=2)
+    # 皮带轮 CSV
+    pulleys_path = data_dir / "pulleys.csv"
+    if not pulleys_path.exists():
+        with open(pulleys_path, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["code", "name"])
+            writer.writeheader()
+            writer.writerows(DEFAULT_PULLEYS)
     
-    return file_path
+    # 皮带品牌 CSV
+    belts_path = data_dir / "belts.csv"
+    if not belts_path.exists():
+        with open(belts_path, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["name", "flat_to_pitch", "pitch_to_effective", "height"])
+            writer.writeheader()
+            writer.writerows(DEFAULT_BELTS)
+    
+    return data_dir
 
 
 def load_pulleys():
-    """加载皮带轮数据"""
-    file_path = ensure_data_file("pulleys.json", DEFAULT_PULLEYS)
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """加载皮带轮数据（从 CSV）"""
+    ensure_data_files()
+    file_path = get_pulleys_path()
+    
+    with open(file_path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
 
 
 def load_belts():
-    """加载皮带品牌数据"""
-    file_path = ensure_data_file("belt.json", DEFAULT_BELTS)
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """加载皮带品牌数据（从 CSV）"""
+    ensure_data_files()
+    file_path = get_belts_path()
+    
+    with open(file_path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        belts = []
+        for row in reader:
+            belts.append({
+                "name": row["name"],
+                "flat_to_pitch": float(row["flat_to_pitch"]),
+                "pitch_to_effective": float(row["pitch_to_effective"]),
+                "height": float(row["height"])
+            })
+        return belts
 
 
 def save_pulleys(data: List[dict]):
-    """保存皮带轮数据"""
-    file_path = ensure_data_file("pulleys.json", DEFAULT_PULLEYS)
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    """保存皮带轮数据到 CSV"""
+    file_path = get_pulleys_path()
+    with open(file_path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["code", "name"])
+        writer.writeheader()
+        writer.writerows(data)
 
 
 def save_belts(data: List[dict]):
-    """保存皮带品牌数据"""
-    file_path = ensure_data_file("belt.json", DEFAULT_BELTS)
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    """保存皮带品牌数据到 CSV"""
+    file_path = get_belts_path()
+    with open(file_path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["name", "flat_to_pitch", "pitch_to_effective", "height"])
+        writer.writeheader()
+        writer.writerows(data)
 
 
 @router.get("/belt-options")
@@ -112,15 +147,15 @@ def get_manufacturer_options():
 
 @router.get("/export/pulleys")
 def export_pulleys_csv():
-    """导出皮带轮数据为 CSV 格式"""
-    pulleys = load_pulleys()
+    """导出皮带轮数据（直接读取 CSV 文件）"""
+    ensure_data_files()
+    file_path = get_pulleys_path()
     
-    output = "code,name\n"
-    for p in pulleys:
-        output += f'{p.get("code", "")},{p.get("name", "")}\n'
+    with open(file_path, "r", encoding="utf-8-sig") as f:
+        content = f.read()
     
     return StreamingResponse(
-        iter([output]),
+        iter([content]),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=pulleys.csv"}
     )
@@ -128,15 +163,15 @@ def export_pulleys_csv():
 
 @router.get("/export/belts")
 def export_belts_csv():
-    """导出皮带品牌数据为 CSV 格式"""
-    belts = load_belts()
+    """导出皮带品牌数据（直接读取 CSV 文件）"""
+    ensure_data_files()
+    file_path = get_belts_path()
     
-    output = "name,flat_to_pitch,pitch_to_effective,height\n"
-    for b in belts:
-        output += f'{b.get("name", "")},{b.get("flat_to_pitch", "")},{b.get("pitch_to_effective", "")},{b.get("height", "")}\n'
+    with open(file_path, "r", encoding="utf-8-sig") as f:
+        content = f.read()
     
     return StreamingResponse(
-        iter([output]),
+        iter([content]),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=belts.csv"}
     )
