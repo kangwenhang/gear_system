@@ -326,6 +326,11 @@ async function handleCalculate() {
 
     if (response.data && response.data.results) {
       resultList.value = response.data.results
+      sharedStore.alignmentResult = response.data.results
+      sharedStore.alignmentInput = {
+        centerHeight: formData.value.centerHeight,
+        perpendicularity: formData.value.perpendicularity
+      }
       ElMessage.success(`计算完成，共 ${response.data.count} 对带轮`)
     }
   } catch (error) {

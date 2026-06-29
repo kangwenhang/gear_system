@@ -1,14 +1,14 @@
 <template>
   <div class="app-container">
-    <!-- 页面内容 -->
-    <div class="page-content">
+    <div class="page-content" v-if="!showReport">
       <InputPage v-show="activeTab === 'layout'" />
       <LoadPage v-show="activeTab === 'load'" />
       <AlignmentPage v-show="activeTab === 'alignment'" />
     </div>
 
-    <!-- 底部步骤导航 -->
-    <div class="step-nav">
+    <ReportPage v-else @back="showReport = false" />
+
+    <div class="step-nav no-print" v-if="!showReport">
       <div class="step-indicator">
         <div class="step-item">
           <span class="step-dot" :class="{ active: activeTab === 'layout' }">1</span>
@@ -45,12 +45,16 @@
         </el-button>
         <el-button
           v-else
-          type="primary"
+          type="success"
           size="large"
           @click="confirmCalculate"
         >
-          <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          确认输入，进入计算
+          <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <path d="M9 15l2 2 4-4"/>
+          </svg>
+          生成报告
         </el-button>
       </div>
     </div>
@@ -58,15 +62,21 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import InputPage from './views/InputPage.vue'
 import LoadPage from './views/LoadPage.vue'
 import AlignmentPage from './views/AlignmentPage.vue'
+import ReportPage from './views/ReportPage.vue'
 import { sharedStore } from './store/shared.js'
 
 const steps = ['layout', 'load', 'alignment']
 const activeTab = ref('layout')
+
+const showReport = computed({
+  get: () => sharedStore.showReport,
+  set: (val) => { sharedStore.showReport = val }
+})
 
 const prevStep = () => {
   const idx = steps.indexOf(activeTab.value)
@@ -80,7 +90,8 @@ const nextStep = () => {
 
 const confirmCalculate = () => {
   sharedStore.calcTrigger++
-  ElMessage.success('已确认所有输入，开始计算')
+  sharedStore.showReport = true
+  ElMessage.success('报告已生成')
 }
 </script>
 
@@ -101,12 +112,10 @@ body {
   padding: 0 32px 120px;
 }
 
-/* ===== 页面内容 ===== */
 .page-content {
   min-height: calc(100vh - 160px);
 }
 
-/* ===== 底部步骤导航 ===== */
 .step-nav {
   position: fixed;
   bottom: 0;
@@ -124,7 +133,6 @@ body {
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
 }
 
-/* 步骤指示器 */
 .step-indicator {
   display: flex;
   align-items: flex-start;
@@ -182,10 +190,20 @@ body {
   background: #409eff;
 }
 
-/* 按钮 */
 .step-buttons {
   display: flex;
   gap: 12px;
   flex-shrink: 0;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .app-container {
+    padding: 0;
+    max-width: 100%;
+  }
 }
 </style>

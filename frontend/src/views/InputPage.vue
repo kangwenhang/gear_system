@@ -956,10 +956,9 @@ watch(
   { deep: true }
 )
 
-// 同步带轮数据到共享 store（供负载页使用）
-// pulleys: 所有带轮完整数据（含直径、类型）；beltParams: 皮带参数
+// 同步带轮数据到共享 store（供负载页和报告页使用）
 watch(
-  () => tableData.value.map(p => ({ code: p.code, name: p.name, flat_dia: p.flat_dia, groove_dia: p.groove_dia, type: p.type })),
+  () => tableData.value.map(p => ({ code: p.code, name: p.name, flat_dia: p.flat_dia, groove_dia: p.groove_dia, type: p.type, x: p.x, y: p.y, inertia: p.inertia, service_factor: p.service_factor })),
   (newPulleys) => {
     sharedStore.pulleys.splice(0, sharedStore.pulleys.length, ...newPulleys.filter(p => p.code))
   },
@@ -972,6 +971,33 @@ watch(
   (val) => {
     sharedStore.beltParams.flat_to_pitch = val.flat_to_pitch
     sharedStore.beltParams.pitch_to_effective = val.pitch_to_effective
+  },
+  { deep: true, immediate: true }
+)
+
+// 同步表单信息到共享 store
+watch(
+  () => formInfo.value,
+  (val) => {
+    Object.assign(sharedStore.formInfo, val)
+  },
+  { deep: true, immediate: true }
+)
+
+// 同步张紧器参数到共享 store
+watch(
+  () => tensioner.value,
+  (val) => {
+    sharedStore.tensioner = JSON.parse(JSON.stringify(val))
+  },
+  { deep: true, immediate: true }
+)
+
+// 同步完整皮带参数到共享 store
+watch(
+  () => beltParams.value,
+  (val) => {
+    sharedStore.beltFullParams = JSON.parse(JSON.stringify(val))
   },
   { deep: true, immediate: true }
 )
