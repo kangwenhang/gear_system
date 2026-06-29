@@ -34,20 +34,29 @@ DEFAULT_BELTS = [
 
 def get_data_dir():
     """获取数据目录，优先使用运行目录下的 data 文件夹"""
-    work_dir = Path.cwd()
-    work_data_dir = work_dir / "data"
+    import sys
     
+    # 打包后的应用，使用可执行文件所在目录
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的应用
+        # sys.executable 是可执行文件路径，parent 是所在目录
+        base_dir = Path(sys.executable).parent
+    else:
+        # 开发环境或普通运行，使用当前工作目录
+        base_dir = Path.cwd()
+    
+    work_data_dir = base_dir / "data"
+    
+    # 优先使用 base_dir 的 data 文件夹
     if work_data_dir.exists() and work_data_dir.is_dir():
         return work_data_dir
     
     # 开发环境：使用脚本同级目录
     script_dir = Path(__file__).parent.parent / "data"
     if script_dir.exists() and script_dir.is_dir():
-        if not work_data_dir.exists():
-            work_data_dir.mkdir(parents=True, exist_ok=True)
-        return work_data_dir
+        return script_dir
     
-    # 都不存在时，在运行目录创建 data 目录
+    # 都不存在时，在 base_dir 创建 data 目录
     work_data_dir.mkdir(parents=True, exist_ok=True)
     return work_data_dir
 
