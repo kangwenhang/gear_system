@@ -1,6 +1,9 @@
 import json
+import csv
 from pathlib import Path
-from fastapi import APIRouter
+from typing import List, Optional
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 
 router = APIRouter()
 
@@ -79,6 +82,20 @@ def load_belts():
         return json.load(f)
 
 
+def save_pulleys(data: List[dict]):
+    """保存皮带轮数据"""
+    file_path = ensure_data_file("pulleys.json", DEFAULT_PULLEYS)
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def save_belts(data: List[dict]):
+    """保存皮带品牌数据"""
+    file_path = ensure_data_file("belt.json", DEFAULT_BELTS)
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 @router.get("/belt-options")
 def get_belt_options():
     pulleys = load_pulleys()
@@ -89,3 +106,158 @@ def get_belt_options():
 def get_manufacturer_options():
     manufacturers = load_belts()
     return {"manufacturers": manufacturers}
+
+
+# ============ 导入导出功能 ============
+
+@router.get("/export/pulleys")
+def export_pulleys_csv():
+    """导出皮带轮数据为 CSV 格式"""
+    pulleys = load_pulleys()
+    
+    output = "code,name\n"
+    for p in pulleys:
+        output += f'{p.get("code", "")},{p.get("name", "")}\n'
+    
+    return StreamingResponse(
+        iter([output]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=pulleys.csv"}
+    )
+
+
+@router.get("/export/belts")
+def export_belts_csv():
+    """导出皮带品牌数据为 CSV 格式"""
+    belts = load_belts()
+    
+    output = "name,flat_to_pitch,pitch_to_effective,height\n"
+    for b in belts:
+        output += f'{b.get("name", "")},{b.get("flat_to_pitch", "")},{b.get("pitch_to_effective", "")},{b.get("height", "")}\n'
+    
+    return StreamingResponse(
+        iter([output]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=belts.csv"}
+    )
+
+
+@router.post("/import/pulleys")
+async def import_pulleys(file: UploadFile = File(...)):
+    """导入皮带轮数据（支持 CSV 格式）
+    
+    CSV 格式要求：
+    - 第一行为表头：code,name
+    - 从第二行开始为数据
+    """
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="只支持 CSV 格式文件")
+    
+    content = await file.read()
+    try:
+        text = content.decode('utf-8')
+        lines = text.strip().split('\n')
+        
+        if len(lines) < 2:
+            raise HTTPException(status_code=400, detail="CSV 文件数据为空")
+        
+        # 解析 CSV（跳过表头）
+        pulleys = []
+        for line in lines[1:]:  # 跳过表头
+            if not line.strip():
+                continue
+            parts = line.strip().split(',')
+            if len(parts) >= 2:
+                pulleys.append({
+                    "code": parts[0].strip(),
+                    "name": parts[1].strip()
+                })
+        
+        if not pulleys:
+            raise HTTPException(status_code=400, detail="未解析到有效数据")
+        
+        save_pulleys(pulleys)
+        return {"message": f"成功导入 {len(pulleys)} 条皮带轮数据", "count": len(pulleys)}
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"导入失败: {str(e)}")
+
+
+@router.post("/import/belts")
+async def import_belts(file: UploadFile = File(...)):
+    """导入皮带品牌数据（支持 CSV 格式）
+    
+    CSV 格式要求：
+    - 第一行为表头：name,flat_to_pitch,pitch_to_effective,height
+    - 从第二行开始为数据
+    """
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="只支持 CSV 格式文件")
+    
+    content = await file.read()
+    try:
+        text = content.decode('utf-8')
+        lines = text.strip().split('\n')
+        
+        if len(lines) < 2:
+            raise HTTPException(status_code=400, detail="CSV 文件数据为空")
+        
+        # 解析 CSV（跳过表头）
+        belts = []
+        for line in lines[1:]:  # 跳过表头
+            if not line.strip():
+                continue
+            parts = line.strip().split(',')
+            if len(parts) >= 4:
+                try:
+                    belts.append({
+                        "name": parts[0].strip(),
+                        "flat_to_pitch": float(parts[1].strip()),
+                        "pitch_to_effective": float(parts[2].strip()),
+                        "height": float(parts[3].strip())
+                    })
+                except ValueError as e:
+                    raise HTTPException(status_code=400, detail=f"数据类型错误: {line}")
+        
+        if not belts:
+            raise HTTPException(status_code=400, detail="未解析到有效数据")
+        
+        save_belts(belts)
+        return {"message": f"成功导入 {len(belts)} 条皮带品牌数据", "count": len(belts)}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"导入失败: {str(e)}")
+
+
+# ============ 简单的 CRUD API ============
+
+@router.put("/pulleys")
+def update_pulleys(data: List[dict]):
+    """更新所有皮带轮数据"""
+    # 验证数据格式
+    for p in data:
+        if "code" not in p or "name" not in p:
+            raise HTTPException(status_code=400, detail="每条数据必须包含 code 和 name")
+    
+    save_pulleys(data)
+    return {"message": f"成功更新 {len(data)} 条皮带轮数据"}
+
+
+@router.put("/belts")
+def update_belts(data: List[dict]):
+    """更新所有皮带品牌数据"""
+    # 验证数据格式
+    for b in data:
+        required = ["name", "flat_to_pitch", "pitch_to_effective", "height"]
+        for field in required:
+            if field not in b:
+                raise HTTPException(status_code=400, detail=f"每条数据必须包含 {field}")
+            try:
+                float(b[field])
+            except (ValueError, TypeError):
+                raise HTTPException(status_code=400, detail=f"{field} 必须是数字")
+    
+    save_belts(data)
+    return {"message": f"成功更新 {len(data)} 条皮带品牌数据"}
