@@ -22,9 +22,15 @@ export const calcPulleyDiagram = (data) => {
   return api.post('/calculate', data)
 }
 
+// 对齐度计算
+export const calcAlignment = (data) => {
+  return api.post('/alignment/calculate', data)
+}
+
 // 集中导出（方便在页面中一次性引入）
 export default {
   getBeltOptions,
   getManufacturerOptions,
-  calcPulleyDiagram
+  calcPulleyDiagram,
+  calcAlignment
 }
