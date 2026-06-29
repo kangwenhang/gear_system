@@ -33,30 +33,29 @@ DEFAULT_BELTS = [
 
 
 def get_data_dir():
-    """获取数据目录，优先使用运行目录下的 data 文件夹"""
+    """获取数据目录"""
     import sys
     
-    # 打包后的应用，使用可执行文件所在目录
+    # 打包后的应用，始终使用可执行文件所在目录
     if getattr(sys, 'frozen', False):
-        # PyInstaller 打包后的应用
-        # sys.executable 是可执行文件路径，parent 是所在目录
         base_dir = Path(sys.executable).parent
-    else:
-        # 开发环境或普通运行，使用当前工作目录
-        base_dir = Path.cwd()
+        data_dir = base_dir / "data"
+        if not data_dir.exists():
+            data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir
     
-    work_data_dir = base_dir / "data"
-    
-    # 优先使用 base_dir 的 data 文件夹
+    # 开发环境：优先使用当前工作目录的 data 文件夹
+    work_dir = Path.cwd()
+    work_data_dir = work_dir / "data"
     if work_data_dir.exists() and work_data_dir.is_dir():
         return work_data_dir
     
-    # 开发环境：使用脚本同级目录
+    # 其次使用脚本同级目录
     script_dir = Path(__file__).parent.parent / "data"
     if script_dir.exists() and script_dir.is_dir():
         return script_dir
     
-    # 都不存在时，在 base_dir 创建 data 目录
+    # 都不存在时，在当前工作目录创建 data 目录
     work_data_dir.mkdir(parents=True, exist_ok=True)
     return work_data_dir
 
@@ -150,6 +149,36 @@ def get_belt_options():
 def get_manufacturer_options():
     manufacturers = load_belts()
     return {"manufacturers": manufacturers}
+
+
+@router.get("/data-info")
+def get_data_info():
+    """获取数据目录信息，方便调试"""
+    import sys
+    data_dir = get_data_dir()
+    pulleys_path = get_pulleys_path()
+    belts_path = get_belts_path()
+    
+    info = {
+        "frozen": getattr(sys, 'frozen', False),
+        "executable": str(sys.executable),
+        "cwd": str(Path.cwd()),
+        "data_dir": str(data_dir),
+        "pulleys_file": str(pulleys_path),
+        "belts_file": str(belts_path),
+        "pulleys_exists": pulleys_path.exists(),
+        "belts_exists": belts_path.exists(),
+    }
+    
+    if pulleys_path.exists():
+        with open(pulleys_path, "r", encoding="utf-8-sig") as f:
+            info["pulleys_content"] = f.read()
+    
+    if belts_path.exists():
+        with open(belts_path, "r", encoding="utf-8-sig") as f:
+            info["belts_content"] = f.read()
+    
+    return info
 
 
 # ============ 导入导出功能 ============
