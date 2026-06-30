@@ -98,7 +98,7 @@ body {
 .app-container {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 0 32px 120px;
+  padding: 0 32px 140px;
 }
 
 /* ===== 页面内容 ===== */
@@ -116,7 +116,7 @@ body {
   margin: 0 auto;
   background: #ffffff;
   border-top: 2px solid #e8ecf1;
-  padding: 20px 32px;
+  padding: 16px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -187,5 +187,47 @@ body {
   display: flex;
   gap: 12px;
   flex-shrink: 0;
+}
+
+/* ===== 移动端响应式 ===== */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0 16px 160px;
+  }
+
+  .step-nav {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .step-indicator {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .step-dot {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .step-label {
+    font-size: 11px;
+  }
+
+  .step-line {
+    width: 32px;
+    margin: 11px 6px 0;
+  }
+
+  .step-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .step-buttons .el-button {
+    flex: 1;
+  }
 }
 </style>
