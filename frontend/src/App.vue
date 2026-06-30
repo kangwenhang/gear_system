@@ -1,14 +1,15 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" :class="{ 'report-mode': activeTab === 'report' }">
     <!-- 页面内容 -->
     <div class="page-content">
       <InputPage v-show="activeTab === 'layout'" />
       <LoadPage v-show="activeTab === 'load'" />
       <AlignmentPage v-show="activeTab === 'alignment'" />
+      <ReportPage v-show="activeTab === 'report'" @back="backFromReport" />
     </div>
 
-    <!-- 底部步骤导航 -->
-    <div class="step-nav">
+    <!-- 底部步骤导航（报告页隐藏） -->
+    <div class="step-nav no-print" v-show="activeTab !== 'report'">
       <div class="step-indicator">
         <div class="step-item">
           <span class="step-dot" :class="{ active: activeTab === 'layout' }">1</span>
@@ -63,6 +64,7 @@ import { ElMessage } from 'element-plus'
 import InputPage from './views/InputPage.vue'
 import LoadPage from './views/LoadPage.vue'
 import AlignmentPage from './views/AlignmentPage.vue'
+import ReportPage from './views/ReportPage.vue'
 import { sharedStore } from './store/shared.js'
 
 const steps = ['layout', 'load', 'alignment']
@@ -80,7 +82,11 @@ const nextStep = () => {
 
 const confirmCalculate = () => {
   sharedStore.calcTrigger++
-  ElMessage.success('已确认所有输入，开始计算')
+  activeTab.value = 'report'
+}
+
+const backFromReport = () => {
+  activeTab.value = 'alignment'
 }
 </script>
 
@@ -99,6 +105,10 @@ body {
   max-width: 1600px;
   margin: 0 auto;
   padding: 0 32px 140px;
+}
+
+.app-container.report-mode {
+  padding: 0;
 }
 
 /* ===== 页面内容 ===== */

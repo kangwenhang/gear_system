@@ -9,6 +9,36 @@ export const sharedStore = reactive({
     flat_to_pitch: null,
     pitch_to_effective: null
   },
+  // 皮带完整参数
+  beltFullParams: {
+    belt_type: '',
+    manufacturer: '',
+    ribs: null,
+    effective_length: null,
+    min_length: null,
+    max_length: null,
+    length_tolerance: null,
+    elongation: null,
+    stretch: null
+  },
+  // 张紧器参数
+  tensioner: {
+    type: '',
+    torque: null,
+    angle: null,
+    arm_length: null
+  },
+  // 项目表单信息
+  formInfo: {
+    customer: '',
+    project: '',
+    cylinders: null,
+    power: null,
+    rated_speed: null,
+    idle_speed: null
+  },
+  // 对齐度计算结果
+  alignmentResults: [],
   // 触发对齐度计算的信号
   calcTrigger: 0
 })
