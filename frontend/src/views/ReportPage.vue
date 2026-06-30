@@ -726,15 +726,7 @@ const beltFullParams = computed(() => sharedStore.beltFullParams)
 const pulleys = computed(() => sharedStore.pulleys)
 
 const displayPulleys = computed(() => {
-  return pulleys.value && pulleys.value.length > 0
-    ? pulleys.value
-    : [
-        { code: 'P1', name: '曲轴', type: 'groove', x: 0, y: 0, groove_dia: 150 },
-        { code: 'P2', name: '发电机', type: 'groove', x: 200, y: 100, groove_dia: 80 },
-        { code: 'P3', name: '水泵', type: 'flat', x: 100, y: 200, flat_dia: 100 },
-        { code: 'P4', name: '空调', type: 'groove', x: -50, y: 150, groove_dia: 120 },
-        { code: 'T1', name: '张紧轮', type: 'flat', x: 150, y: -50, flat_dia: 70 }
-      ]
+  return pulleys.value || []
 })
 
 const currentDate = computed(() => {
