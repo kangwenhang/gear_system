@@ -138,19 +138,16 @@ import { ElMessage } from 'element-plus'
 
 const showResult = ref(false)
 
-const pulleys = computed({
-  get() {
-    return sharedStore.pulleys.map(p => ({
-      ...p,
-      centerHeightDiff: p.centerHeightDiff ?? 0,
-      perpendicularity: p.perpendicularity ?? 0,
-      entryAngle: p.entryAngle ?? null,
-      passed: p.passed ?? false
-    }))
-  },
-  set(val) {
-    sharedStore.pulleys = val
-  }
+// 直接使用 sharedStore.pulleys，让 v-model 能修改原始对象
+const pulleys = computed(() => {
+  // 保证字段存在（不影响原对象引用）
+  sharedStore.pulleys.forEach(p => {
+    if (p.centerHeightDiff === undefined) p.centerHeightDiff = ''
+    if (p.perpendicularity === undefined) p.perpendicularity = ''
+    if (p.entryAngle === undefined) p.entryAngle = null
+    if (p.passed === undefined) p.passed = false
+  })
+  return sharedStore.pulleys
 })
 
 const maxCenterHeightDiff = computed(() => {
