@@ -136,25 +136,31 @@
         </table>
       </div>
     </el-card>
+
+    <el-card v-else-if="pulleys.length > 0" shadow="hover" class="result-card result-empty">
+      <el-empty description="带轮数量不足或无法组成带轮对，请检查带轮类型（至少需要2个槽轮）" />
+    </el-card>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 import { sharedStore } from '../store/shared.js'
 
-// 直接使用 sharedStore.pulleys，让 v-model 能修改原始对象
-const pulleys = computed(() => {
+// 确保每个带轮都有对齐度相关字段（副作用放在 watchEffect 中）
+watchEffect(() => {
   sharedStore.pulleys.forEach(p => {
     if (p.centerHeightDiff === undefined) p.centerHeightDiff = ''
     if (p.perpendicularity === undefined) p.perpendicularity = ''
   })
-  return sharedStore.pulleys
 })
+
+// 直接使用共享 store 中的带轮数组
+const pulleys = computed(() => sharedStore.pulleys)
 
 // 生成带轮对（槽轮-槽轮 或 槽轮-平轮-槽轮）
 const alignmentPairs = computed(() => {
-  const list = pulleys.value
+  const list = sharedStore.pulleys
   if (list.length < 2) return []
 
   const pairs = []
@@ -164,7 +170,6 @@ const alignmentPairs = computed(() => {
     const next = list[i + 1]
 
     if (curr.type === 'groove' && next.type === 'groove') {
-      // 槽轮-槽轮
       pairs.push({
         type: 'groove-groove',
         fromCode: curr.code || '--',
@@ -178,7 +183,6 @@ const alignmentPairs = computed(() => {
       })
       i++
     } else if (curr.type === 'groove' && next.type === 'flat' && i + 2 < list.length && list[i + 2].type === 'groove') {
-      // 槽轮-平轮-槽轮
       pairs.push({
         type: 'groove-flat-groove',
         fromCode: curr.code || '--',
@@ -351,6 +355,10 @@ function formatNum(val) {
 
 .result-card {
   margin-top: 20px;
+}
+
+.result-empty {
+  padding: 20px 0;
 }
 
 .result-table-wrapper {
