@@ -45,21 +45,15 @@
               </td>
               <td>{{ p.name || '--' }}</td>
               <td>
-                <el-input-number
+                <el-input
                 v-model="p.centerHeightDiff"
-                :precision="2"
-                :step="0.01"
-                controls-position="right"
                 placeholder="请输入"
                 style="width: 100%"
               />
               </td>
               <td>
-                <el-input-number
+                <el-input
                 v-model="p.perpendicularity"
-                :precision="2"
-                :step="0.01"
-                controls-position="right"
                 placeholder="请输入"
                 style="width: 100%"
               />
@@ -306,7 +300,6 @@ function handleCalculate() {
 }
 
 .pulley-code {
-  font-family: 'Courier New', monospace;
   font-weight: 600;
   color: #409eff;
 }
