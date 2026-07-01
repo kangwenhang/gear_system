@@ -69,59 +69,67 @@
     </el-card>
 
     <!-- 计算结果 -->
-    <el-card v-if="showResult" shadow="hover" class="result-card">
+    <el-card v-if="alignmentPairs.length > 0" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
           <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="9 11 12 14 22 4"/>
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
-          <span>计算结果</span>
+          <span>对齐度结果</span>
+          <span class="card-tip">（共 {{ alignmentPairs.length }} 组带轮对）</span>
         </div>
       </template>
-
-      <div class="result-summary">
-        <div class="result-stat">
-          <span class="stat-label">总带轮数</span>
-          <span class="stat-value">{{ pulleys.length }}</span>
-        </div>
-        <div class="result-stat">
-          <span class="stat-label">最大中心高</span>
-          <span class="stat-value" :class="maxDiffClass">
-            {{ formatNum(maxCenterHeightDiff) }} mm
-          </span>
-        </div>
-        <div class="result-stat">
-          <span class="stat-label">最大垂直度</span>
-          <span class="stat-value" :class="maxPerpClass">
-            {{ formatNum(maxPerpendicularity) }}°
-          </span>
-        </div>
-      </div>
 
       <div class="result-table-wrapper">
         <table class="result-table">
           <thead>
             <tr>
-              <th style="width: 60px">序号</th>
-              <th>带轮编号</th>
-              <th>中心高 (mm)</th>
-              <th>垂直度 (°)</th>
-              <th>切入角度 (°)</th>
-              <th>评定</th>
+              <th rowspan="2" style="width: 60px">序号</th>
+              <th rowspan="2">带轮对</th>
+              <th rowspan="2" style="width: 120px">类型</th>
+              <th colspan="3" class="group-header group-groove">槽轮-槽轮</th>
+              <th colspan="2" class="group-header group-flat">槽轮-平轮-槽轮</th>
+            </tr>
+            <tr>
+              <th class="group-groove">切入角BEA (°)</th>
+              <th class="group-groove">Twist (°)</th>
+              <th class="group-groove">Offset (mm)</th>
+              <th class="group-flat">切入角BEA (°)</th>
+              <th class="group-flat">Twist (°)</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(p, idx) in pulleys" :key="idx">
-              <td style="text-align: center; color: #909399">{{ idx + 1 }}</td>
-              <td><span class="pulley-code">{{ p.code || '--' }}</span></td>
-              <td>{{ formatNum(p.centerHeightDiff) }}</td>
-              <td>{{ formatNum(p.perpendicularity) }}</td>
-              <td>{{ formatNum(p.entryAngle) }}</td>
+            <tr v-for="(pair, idx) in alignmentPairs" :key="idx">
+              <td style="color: #909399">{{ idx + 1 }}</td>
               <td>
-                <el-tag :type="p.passed ? 'success' : 'warning'" size="small">
-                  {{ p.passed ? '合格' : '待评定' }}
+                <span class="pair-codes">
+                  <span class="pulley-code">{{ pair.fromCode }}</span>
+                  <span class="pair-arrow">→</span>
+                  <span v-if="pair.middleCode" class="pulley-code pulley-code-flat">{{ pair.middleCode }}</span>
+                  <span v-if="pair.middleCode" class="pair-arrow">→</span>
+                  <span class="pulley-code">{{ pair.toCode }}</span>
+                </span>
+              </td>
+              <td>
+                <el-tag :type="pair.type === 'groove-groove' ? 'primary' : 'success'" size="small">
+                  {{ pair.type === 'groove-groove' ? '槽轮-槽轮' : '槽轮-平轮-槽轮' }}
                 </el-tag>
+              </td>
+              <td :class="{ 'cell-na': pair.type !== 'groove-groove' }">
+                {{ pair.type === 'groove-groove' ? formatNum(pair.bea) : 'N/A' }}
+              </td>
+              <td :class="{ 'cell-na': pair.type !== 'groove-groove' }">
+                {{ pair.type === 'groove-groove' ? formatNum(pair.twist) : 'N/A' }}
+              </td>
+              <td :class="{ 'cell-na': pair.type !== 'groove-groove' }">
+                {{ pair.type === 'groove-groove' ? formatNum(pair.offset) : 'N/A' }}
+              </td>
+              <td :class="{ 'cell-na': pair.type !== 'groove-flat-groove' }">
+                {{ pair.type === 'groove-flat-groove' ? formatNum(pair.bea) : 'N/A' }}
+              </td>
+              <td :class="{ 'cell-na': pair.type !== 'groove-flat-groove' }">
+                {{ pair.type === 'groove-flat-groove' ? formatNum(pair.twist) : 'N/A' }}
               </td>
             </tr>
           </tbody>
@@ -132,59 +140,101 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { sharedStore } from '../store/shared.js'
-import { ElMessage } from 'element-plus'
-
-const showResult = ref(false)
 
 // 直接使用 sharedStore.pulleys，让 v-model 能修改原始对象
 const pulleys = computed(() => {
-  // 保证字段存在（不影响原对象引用）
   sharedStore.pulleys.forEach(p => {
     if (p.centerHeightDiff === undefined) p.centerHeightDiff = ''
     if (p.perpendicularity === undefined) p.perpendicularity = ''
-    if (p.entryAngle === undefined) p.entryAngle = null
-    if (p.passed === undefined) p.passed = false
   })
   return sharedStore.pulleys
 })
 
-const maxCenterHeightDiff = computed(() => {
-  if (!pulleys.value.length) return 0
-  return Math.max(...pulleys.value.map(p => Math.abs(p.centerHeightDiff || 0)))
+// 生成带轮对（槽轮-槽轮 或 槽轮-平轮-槽轮）
+const alignmentPairs = computed(() => {
+  const list = pulleys.value
+  if (list.length < 2) return []
+
+  const pairs = []
+  let i = 0
+  while (i < list.length - 1) {
+    const curr = list[i]
+    const next = list[i + 1]
+
+    if (curr.type === 'groove' && next.type === 'groove') {
+      // 槽轮-槽轮
+      pairs.push({
+        type: 'groove-groove',
+        fromCode: curr.code || '--',
+        toCode: next.code || '--',
+        middleCode: null,
+        fromIdx: i,
+        toIdx: i + 1,
+        bea: calcBEA(curr, next),
+        twist: calcTwist(curr, next),
+        offset: calcOffset(curr, next)
+      })
+      i++
+    } else if (curr.type === 'groove' && next.type === 'flat' && i + 2 < list.length && list[i + 2].type === 'groove') {
+      // 槽轮-平轮-槽轮
+      pairs.push({
+        type: 'groove-flat-groove',
+        fromCode: curr.code || '--',
+        toCode: list[i + 2].code || '--',
+        middleCode: next.code || '--',
+        fromIdx: i,
+        toIdx: i + 2,
+        middleIdx: i + 1,
+        bea: calcBEAFlat(curr, next, list[i + 2]),
+        twist: calcTwistFlat(curr, next, list[i + 2]),
+        offset: null
+      })
+      i += 2
+    } else {
+      i++
+    }
+  }
+  return pairs
 })
 
-const maxPerpendicularity = computed(() => {
-  if (!pulleys.value.length) return 0
-  return Math.max(...pulleys.value.map(p => p.perpendicularity || 0))
-})
+// ===== 占位计算公式（待用户提供正式公式后替换）=====
+function calcBEA(p1, p2) {
+  const ch1 = Number(p1.centerHeightDiff) || 0
+  const ch2 = Number(p2.centerHeightDiff) || 0
+  const dx = Math.abs((p1.x || 0) - (p2.x || 0)) || 1
+  return Math.atan(Math.abs(ch2 - ch1) / dx) * 180 / Math.PI
+}
 
-const maxDiffClass = computed(() => maxCenterHeightDiff.value > 0.5 ? 'value-warn' : '')
-const maxPerpClass = computed(() => maxPerpendicularity.value > 0.3 ? 'value-warn' : '')
+function calcTwist(p1, p2) {
+  const perp1 = Number(p1.perpendicularity) || 0
+  const perp2 = Number(p2.perpendicularity) || 0
+  return Math.abs(perp1 - perp2)
+}
+
+function calcOffset(p1, p2) {
+  const ch1 = Number(p1.centerHeightDiff) || 0
+  const ch2 = Number(p2.centerHeightDiff) || 0
+  return Math.abs(ch1 - ch2)
+}
+
+function calcBEAFlat(p1, pFlat, p2) {
+  const ch1 = Number(p1.centerHeightDiff) || 0
+  const ch2 = Number(p2.centerHeightDiff) || 0
+  const dx = Math.abs((p1.x || 0) - (p2.x || 0)) || 1
+  return Math.atan(Math.abs(ch2 - ch1) / dx) * 180 / Math.PI
+}
+
+function calcTwistFlat(p1, pFlat, p2) {
+  const perp1 = Number(p1.perpendicularity) || 0
+  const perp2 = Number(p2.perpendicularity) || 0
+  return Math.abs(perp1 - perp2)
+}
 
 function formatNum(val) {
   if (val === null || val === undefined || isNaN(val) || val === '') return '--'
   return Number(val).toFixed(2)
-}
-
-function handleCalculate() {
-  if (pulleys.value.length === 0) {
-    ElMessage.warning('请先添加带轮数据')
-    return
-  }
-  
-  // TODO: 调用后端 API 计算对齐度
-  // 目前先做简单的本地计算（占位）
-  pulleys.value.forEach(p => {
-    // 切入角度 = arctan(垂直度) * 180 / PI （占位公式，待用户提供）
-    const perp = p.perpendicularity || 0
-    p.entryAngle = Math.atan(perp / 1000) * 180 / Math.PI
-    p.passed = Math.abs(p.centerHeightDiff || 0) <= 0.5
-  })
-  
-  showResult.value = true
-  ElMessage.success('计算完成')
 }
 </script>
 
@@ -299,45 +349,8 @@ function handleCalculate() {
   padding: 40px 0;
 }
 
-.action-bar {
-  display: flex;
-  justify-content: center;
-  margin: 24px 0;
-}
-
 .result-card {
   margin-top: 20px;
-}
-
-.result-summary {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 8px;
-}
-
-.result-stat {
-  flex: 1;
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 6px;
-}
-
-.stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: #1d2129;
-}
-
-.stat-value.value-warn {
-  color: #f56c6c;
 }
 
 .result-table-wrapper {
@@ -367,21 +380,61 @@ function handleCalculate() {
   background: #f8fafc;
 }
 
+.group-header {
+  font-size: 14px;
+}
+
+.group-header.group-groove {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.group-header.group-flat {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+
+th.group-groove {
+  background: #f5f9ff;
+}
+
+th.group-flat {
+  background: #f6fbf2;
+}
+
+.cell-na {
+  background: #fff5ec;
+  color: #e6a23c;
+  font-weight: 500;
+}
+
+.pair-codes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pair-arrow {
+  color: #c0c4cc;
+  font-size: 12px;
+}
+
+.pulley-code-flat {
+  color: #67c23a !important;
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .pulley-table th,
   .pulley-table td {
     font-size: 12px;
-  }
-
-  .pulley-table th,
-  .pulley-table td {
     padding: 8px 6px;
   }
 
-  .result-summary {
-    flex-direction: column;
-    gap: 12px;
+  .result-table th,
+  .result-table td {
+    font-size: 12px;
+    padding: 8px 6px;
   }
 }
 </style>
