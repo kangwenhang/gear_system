@@ -40,22 +40,22 @@
           <tbody>
             <tr v-for="(p, idx) in pulleys" :key="idx">
               <td style="text-align: center; color: #909399">{{ idx + 1 }}</td>
-              <td>
+              <td style="text-align: center">
                 <span class="pulley-code">{{ p.code || '--' }}</span>
               </td>
-              <td>{{ p.name || '--' }}</td>
+              <td style="text-align: center">{{ p.name || '--' }}</td>
               <td>
                 <el-input
                 v-model="p.centerHeightDiff"
                 placeholder="请输入"
-                style="width: 100%"
+                style="width: 100%; text-align: center"
               />
               </td>
               <td>
                 <el-input
                 v-model="p.perpendicularity"
                 placeholder="请输入"
-                style="width: 100%"
+                style="width: 100%; text-align: center"
               />
               </td>
             </tr>
