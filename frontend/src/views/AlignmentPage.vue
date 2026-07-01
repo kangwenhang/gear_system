@@ -158,47 +158,66 @@ watchEffect(() => {
 // 直接使用共享 store 中的带轮数组
 const pulleys = computed(() => sharedStore.pulleys)
 
-// 生成带轮对（槽轮-槽轮 或 槽轮-平轮-槽轮）
+// 生成带轮对（按槽轮分组，环形轮系）
+// 逻辑：找到所有槽轮，每两个相邻槽轮构成一对
+//   - 中间无其他带轮 → 槽轮-槽轮
+//   - 中间有平轮 → 槽轮-平轮-槽轮
 const alignmentPairs = computed(() => {
   const list = sharedStore.pulleys
   if (list.length < 2) return []
 
-  const pairs = []
-  let i = 0
-  while (i < list.length - 1) {
-    const curr = list[i]
-    const next = list[i + 1]
+  // 收集所有槽轮的索引
+  const grooveIndices = []
+  list.forEach((p, i) => {
+    if (p.type === 'groove') grooveIndices.push(i)
+  })
+  if (grooveIndices.length < 2) return []
 
-    if (curr.type === 'groove' && next.type === 'groove') {
+  const pairs = []
+  for (let i = 0; i < grooveIndices.length; i++) {
+    const currIdx = grooveIndices[i]
+    const nextIdx = grooveIndices[(i + 1) % grooveIndices.length]
+    const curr = list[currIdx]
+    const next = list[nextIdx]
+
+    // 找两个槽轮之间的带轮（不包含两端槽轮）
+    const middlePulleys = []
+    let j = (currIdx + 1) % list.length
+    while (j !== nextIdx) {
+      middlePulleys.push({ pulley: list[j], index: j })
+      j = (j + 1) % list.length
+    }
+
+    if (middlePulleys.length === 0) {
+      // 槽轮-槽轮
       pairs.push({
         type: 'groove-groove',
         fromCode: curr.code || '--',
         toCode: next.code || '--',
         middleCode: null,
-        fromIdx: i,
-        toIdx: i + 1,
+        fromIdx: currIdx,
+        toIdx: nextIdx,
         bea: calcBEA(curr, next),
         twist: calcTwist(curr, next),
         offset: calcOffset(curr, next)
       })
-      i++
-    } else if (curr.type === 'groove' && next.type === 'flat' && i + 2 < list.length && list[i + 2].type === 'groove') {
+    } else if (middlePulleys.length === 1 && middlePulleys[0].pulley.type === 'flat') {
+      // 槽轮-平轮-槽轮
+      const mid = middlePulleys[0].pulley
       pairs.push({
         type: 'groove-flat-groove',
         fromCode: curr.code || '--',
-        toCode: list[i + 2].code || '--',
-        middleCode: next.code || '--',
-        fromIdx: i,
-        toIdx: i + 2,
-        middleIdx: i + 1,
-        bea: calcBEAFlat(curr, next, list[i + 2]),
-        twist: calcTwistFlat(curr, next, list[i + 2]),
+        toCode: next.code || '--',
+        middleCode: mid.code || '--',
+        fromIdx: currIdx,
+        toIdx: nextIdx,
+        middleIdx: middlePulleys[0].index,
+        bea: calcBEAFlat(curr, mid, next),
+        twist: calcTwistFlat(curr, mid, next),
         offset: null
       })
-      i += 2
-    } else {
-      i++
     }
+    // 其他情况（多个平轮等）暂不处理
   }
   return pairs
 })
