@@ -13,8 +13,81 @@
       </div>
     </div>
 
+    <!-- 带轮对齐度输入 -->
+    <el-card shadow="hover" class="input-card">
+      <template #header>
+        <div class="card-header">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+          <span>带轮对齐度参数</span>
+          <span class="card-tip">（数据来自轮系布局，填写中心高和垂直度）</span>
+        </div>
+      </template>
+
+      <div class="pulley-table-wrapper" v-if="pulleys.length > 0">
+        <table class="pulley-table">
+          <thead>
+            <tr>
+              <th style="width: 60px">序号</th>
+              <th>带轮编号</th>
+              <th>带轮名称</th>
+              <th style="width: 160px">中心高差 (mm)</th>
+              <th style="width: 180px">垂直度 (mm/m)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(p, idx) in pulleys" :key="idx">
+              <td style="text-align: center; color: #909399">{{ idx + 1 }}</td>
+              <td>
+                <span class="pulley-code">{{ p.code || '--' }}</span>
+              </td>
+              <td>{{ p.name || '--' }}</td>
+              <td>
+                <el-input-number
+                v-model="p.centerHeightDiff"
+                :precision="2"
+                :step="0.01"
+                controls-position="right"
+                placeholder="请输入"
+                style="width: 100%"
+              />
+              </td>
+              <td>
+                <el-input-number
+                v-model="p.perpendicularity"
+                :precision="2"
+                :step="0.01"
+                :min="0"
+                controls-position="right"
+                placeholder="请输入"
+                style="width: 100%"
+              />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-tip" v-else>
+        <el-empty description="暂无带轮数据，请先在轮系布局页面添加带轮" />
+      </div>
+    </el-card>
+
+    <!-- 操作按钮 -->
+    <div class="action-bar">
+      <el-button type="primary" size="large" :disabled="pulleys.length === 0" @click="handleCalculate">
+        <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22-4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        开始计算
+      </el-button>
+    </div>
+
     <!-- 计算结果 -->
-    <el-card v-if="result" shadow="hover" class="result-card">
+    <el-card v-if="showResult" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
           <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -22,40 +95,118 @@
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
           <span>计算结果</span>
-          <el-tag :type="result.passed ? 'success' : 'danger'" class="result-tag">
-            {{ result.passed ? '合格' : '不合格' }}
-          </el-tag>
         </div>
       </template>
 
-      <el-row :gutter="16">
-        <el-col :span="8" v-for="(item, idx) in result.items" :key="idx">
-          <div class="result-item">
-            <div class="result-label">{{ item.label }}</div>
-            <div class="result-value" :class="{ 'value-warn': !item.pass }">
-              {{ item.value }}
-              <span class="result-unit">{{ item.unit }}</span>
-            </div>
-            <div class="result-status">
-              <el-tag :type="item.pass ? 'success' : 'danger'" size="small">
-                {{ item.pass ? '达标' : '超标' }}
-              </el-tag>
-              <span class="result-limit">限值: {{ item.limit }}{{ item.unit }}</span>
-            </div>
-          </div>
-        </el-col>
-      </el-row>
+      <div class="result-summary">
+        <div class="result-stat">
+          <span class="stat-label">总带轮数</span>
+          <span class="stat-value">{{ pulleys.length }}</span>
+        </div>
+        <div class="result-stat">
+          <span class="stat-label">最大中心高差</span>
+          <span class="stat-value" :class="maxDiffClass">
+            {{ formatNum(maxCenterHeightDiff) }} mm
+          </span>
+        </div>
+        <div class="result-stat">
+          <span class="stat-label">最大垂直度</span>
+          <span class="stat-value" :class="maxPerpClass">
+            {{ formatNum(maxPerpendicularity) }} mm/m
+          </span>
+        </div>
+      </div>
+
+      <div class="result-table-wrapper">
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th style="width: 60px">序号</th>
+              <th>带轮编号</th>
+              <th>中心高差 (mm)</th>
+              <th>垂直度 (mm/m)</th>
+              <th>切入角度 (°)</th>
+              <th>评定</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(p, idx) in pulleys" :key="idx">
+              <td style="text-align: center; color: #909399">{{ idx + 1 }}</td>
+              <td><span class="pulley-code">{{ p.code || '--' }}</span></td>
+              <td>{{ formatNum(p.centerHeightDiff) }}</td>
+              <td>{{ formatNum(p.perpendicularity) }}</td>
+              <td>{{ formatNum(p.entryAngle) }}</td>
+              <td>
+                <el-tag :type="p.passed ? 'success' : 'warning'" size="small">
+                  {{ p.passed ? '合格' : '待评定' }}
+                </el-tag>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { sharedStore } from '../store/shared.js'
+import { ElMessage } from 'element-plus'
 
-const result = ref(null)
+const showResult = ref(false)
 
-// TODO: 后续基于前序页面数据计算对齐度
+const pulleys = computed({
+  get() {
+    return sharedStore.pulleys.map(p => ({
+      ...p,
+      centerHeightDiff: p.centerHeightDiff ?? 0,
+      perpendicularity: p.perpendicularity ?? 0,
+      entryAngle: p.entryAngle ?? null,
+      passed: p.passed ?? false
+    }))
+  },
+  set(val) {
+    sharedStore.pulleys = val
+  }
+})
+
+const maxCenterHeightDiff = computed(() => {
+  if (!pulleys.value.length) return 0
+  return Math.max(...pulleys.value.map(p => Math.abs(p.centerHeightDiff || 0)))
+})
+
+const maxPerpendicularity = computed(() => {
+  if (!pulleys.value.length) return 0
+  return Math.max(...pulleys.value.map(p => p.perpendicularity || 0))
+})
+
+const maxDiffClass = computed(() => maxCenterHeightDiff.value > 0.5 ? 'value-warn' : '')
+const maxPerpClass = computed(() => maxPerpendicularity.value > 0.3 ? 'value-warn' : '')
+
+function formatNum(val) {
+  if (val === null || val === undefined || isNaN(val) || val === '') return '--'
+  return Number(val).toFixed(2)
+}
+
+function handleCalculate() {
+  if (pulleys.value.length === 0) {
+    ElMessage.warning('请先添加带轮数据')
+    return
+  }
+  
+  // TODO: 调用后端 API 计算对齐度
+  // 目前先做简单的本地计算（占位）
+  pulleys.value.forEach(p => {
+    // 切入角度 = arctan(垂直度) * 180 / PI （占位公式，待用户提供）
+    const perp = p.perpendicularity || 0
+    p.entryAngle = Math.atan(perp / 1000) * 180 / Math.PI
+    p.passed = Math.abs(p.centerHeightDiff || 0) <= 0.5
+  })
+  
+  showResult.value = true
+  ElMessage.success('计算完成')
+}
 </script>
 
 <style scoped>
@@ -116,56 +267,138 @@ const result = ref(null)
   color: #409eff;
 }
 
+.card-tip {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 400;
+  margin-left: auto;
+}
+
+.input-card {
+  margin-bottom: 20px;
+}
+
+.pulley-table-wrapper {
+  overflow-x: auto;
+}
+
+.pulley-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.pulley-table th,
+.pulley-table td {
+  border: 1px solid #e4e7ed;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.pulley-table th {
+  background: #f5f7fa;
+  color: #606266;
+  font-weight: 600;
+  text-align: center;
+}
+
+.pulley-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.pulley-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #409eff;
+}
+
+.empty-tip {
+  padding: 40px 0;
+}
+
+.action-bar {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+}
+
 .result-card {
   margin-top: 20px;
 }
 
-.result-tag {
-  margin-left: auto;
-}
-
-.result-item {
-  background: #f7f8fa;
-  border-radius: 8px;
+.result-summary {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
   padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.result-stat {
+  flex: 1;
   text-align: center;
-  margin-bottom: 12px;
-  border: 1px solid #e8ecf1;
 }
 
-.result-label {
+.stat-label {
+  display: block;
   font-size: 13px;
-  color: #86909c;
-  margin-bottom: 8px;
+  color: #909399;
+  margin-bottom: 6px;
 }
 
-.result-value {
-  font-size: 24px;
+.stat-value {
+  font-size: 22px;
   font-weight: 700;
   color: #1d2129;
-  margin-bottom: 8px;
 }
 
-.result-value.value-warn {
-  color: #f53f3f;
+.stat-value.value-warn {
+  color: #f56c6c;
 }
 
-.result-unit {
-  font-size: 13px;
-  font-weight: 400;
-  color: #86909c;
-  margin-left: 2px;
+.result-table-wrapper {
+  overflow-x: auto;
 }
 
-.result-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
 }
 
-.result-limit {
-  font-size: 12px;
-  color: #c9cdd4;
+.result-table th,
+.result-table td {
+  border: 1px solid #e4e7ed;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.result-table th {
+  background: #f5f7fa;
+  color: #606266;
+  font-weight: 600;
+}
+
+.result-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .pulley-table th,
+  .pulley-table td {
+    font-size: 12px;
+  }
+
+  .pulley-table th,
+  .pulley-table td {
+    padding: 8px 6px;
+  }
+
+  .result-summary {
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 </style>
