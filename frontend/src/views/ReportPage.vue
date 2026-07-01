@@ -6,6 +6,11 @@
           <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
           返回编辑
         </el-button>
+      </div>
+      <div class="toolbar-center">
+        <span class="page-indicator">FEAD 性能分析报告 · 共 {{ totalPages }} 页</span>
+      </div>
+      <div class="toolbar-right">
         <el-button type="primary" @click="handlePrint">
           <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 6 2 18 2 18 9"/>
@@ -14,9 +19,6 @@
           </svg>
           打印报告
         </el-button>
-      </div>
-      <div class="toolbar-center">
-        <span class="page-indicator">FEAD 性能分析报告 · 共 {{ totalPages }} 页</span>
       </div>
     </div>
 
@@ -758,12 +760,32 @@ function handlePrint() {
   top: 0;
   z-index: 100;
   background: #fff;
-  padding: 14px 32px;
+  padding: 14px 24px 14px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #e8ecf1;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.toolbar-center {
+  flex: 1;
+  text-align: center;
+  padding: 0 20px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .toolbar-center .page-indicator {
