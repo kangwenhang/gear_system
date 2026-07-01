@@ -285,6 +285,11 @@ function handleCalculate() {
   background: #f8fafc;
 }
 
+/* 表格内输入框文字居中 */
+.pulley-table :deep(.el-input__inner) {
+  text-align: center;
+}
+
 .pulley-code {
   font-weight: 600;
   color: #409eff;
