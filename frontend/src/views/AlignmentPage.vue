@@ -33,8 +33,8 @@
               <th style="width: 60px">序号</th>
               <th>带轮编号</th>
               <th>带轮名称</th>
-              <th style="width: 160px">中心高差 (mm)</th>
-              <th style="width: 180px">垂直度 (mm/m)</th>
+              <th style="width: 160px">中心高 (mm)</th>
+              <th style="width: 180px">垂直度 (°)</th>
             </tr>
           </thead>
           <tbody>
@@ -59,7 +59,6 @@
                 v-model="p.perpendicularity"
                 :precision="2"
                 :step="0.01"
-                :min="0"
                 controls-position="right"
                 placeholder="请输入"
                 style="width: 100%"
@@ -104,7 +103,7 @@
           <span class="stat-value">{{ pulleys.length }}</span>
         </div>
         <div class="result-stat">
-          <span class="stat-label">最大中心高差</span>
+          <span class="stat-label">最大中心高</span>
           <span class="stat-value" :class="maxDiffClass">
             {{ formatNum(maxCenterHeightDiff) }} mm
           </span>
@@ -112,7 +111,7 @@
         <div class="result-stat">
           <span class="stat-label">最大垂直度</span>
           <span class="stat-value" :class="maxPerpClass">
-            {{ formatNum(maxPerpendicularity) }} mm/m
+            {{ formatNum(maxPerpendicularity) }}°
           </span>
         </div>
       </div>
@@ -123,8 +122,8 @@
             <tr>
               <th style="width: 60px">序号</th>
               <th>带轮编号</th>
-              <th>中心高差 (mm)</th>
-              <th>垂直度 (mm/m)</th>
+              <th>中心高 (mm)</th>
+              <th>垂直度 (°)</th>
               <th>切入角度 (°)</th>
               <th>评定</th>
             </tr>
