@@ -959,9 +959,16 @@ watch(
 // 同步带轮数据到共享 store（供负载页使用）
 // pulleys: 所有带轮完整数据（含直径、类型）；beltParams: 皮带参数
 watch(
-  () => tableData.value.map(p => ({ code: p.code, name: p.name, flat_dia: p.flat_dia, groove_dia: p.groove_dia, type: p.type })),
+  () => tableData.value.map(p => ({ code: p.code, name: p.name, x: p.x, y: p.y, flat_dia: p.flat_dia, groove_dia: p.groove_dia, type: p.type, inertia: p.inertia, service_factor: p.service_factor })),
   (newPulleys) => {
-    sharedStore.pulleys.splice(0, sharedStore.pulleys.length, ...newPulleys.filter(p => p.code))
+    const filtered = newPulleys.filter(p => p.code)
+    // 保留已有带轮的对齐度相关字段（centerHeightDiff, perpendicularity 等）
+    const existingMap = new Map(sharedStore.pulleys.map(p => [p.code, p]))
+    const merged = filtered.map(p => {
+      const existing = existingMap.get(p.code)
+      return existing ? { ...existing, ...p } : p
+    })
+    sharedStore.pulleys.splice(0, sharedStore.pulleys.length, ...merged)
   },
   { deep: true, immediate: true }
 )
