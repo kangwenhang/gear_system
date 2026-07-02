@@ -85,18 +85,11 @@
         <table class="result-table">
           <thead>
             <tr>
-              <th rowspan="2" style="width: 60px">序号</th>
-              <th rowspan="2">带轮对</th>
-              <th rowspan="2" style="width: 120px">类型</th>
-              <th colspan="3" class="group-header group-groove">槽轮-槽轮</th>
-              <th colspan="2" class="group-header group-flat">槽轮-平轮-槽轮</th>
-            </tr>
-            <tr>
-              <th class="group-groove">切入角BEA (°)</th>
-              <th class="group-groove">Twist (°)</th>
-              <th class="group-groove">Offset (mm)</th>
-              <th class="group-flat">切入角BEA (°)</th>
-              <th class="group-flat">Twist (°)</th>
+              <th style="width: 60px">序号</th>
+              <th>带轮对</th>
+              <th style="width: 140px">类型</th>
+              <th>切入角BEA (°)</th>
+              <th>Twist (°)</th>
             </tr>
           </thead>
           <tbody>
@@ -116,21 +109,8 @@
                   {{ pair.type === 'groove-groove' ? '槽轮-槽轮' : '槽轮-平轮-槽轮' }}
                 </el-tag>
               </td>
-              <td :class="{ 'cell-na': pair.type !== 'groove-groove' }">
-                {{ pair.type === 'groove-groove' ? formatNum(pair.bea) : 'N/A' }}
-              </td>
-              <td :class="{ 'cell-na': pair.type !== 'groove-groove' }">
-                {{ pair.type === 'groove-groove' ? formatNum(pair.twist) : 'N/A' }}
-              </td>
-              <td :class="{ 'cell-na': pair.type !== 'groove-groove' }">
-                {{ pair.type === 'groove-groove' ? formatNum(pair.offset) : 'N/A' }}
-              </td>
-              <td :class="{ 'cell-na': pair.type !== 'groove-flat-groove' }">
-                {{ pair.type === 'groove-flat-groove' ? formatNum(pair.bea) : 'N/A' }}
-              </td>
-              <td :class="{ 'cell-na': pair.type !== 'groove-flat-groove' }">
-                {{ pair.type === 'groove-flat-groove' ? formatNum(pair.twist) : 'N/A' }}
-              </td>
+              <td>{{ formatNum(pair.bea) }}</td>
+              <td>{{ formatNum(pair.twist) }}</td>
             </tr>
           </tbody>
         </table>
@@ -198,8 +178,7 @@ const alignmentPairs = computed(() => {
         fromIdx: currIdx,
         toIdx: nextIdx,
         bea: calcBEA(curr, next),
-        twist: calcTwist(curr, next),
-        offset: calcOffset(curr, next)
+        twist: calcTwist(curr, next)
       })
     } else if (middlePulleys.length === 1 && middlePulleys[0].pulley.type === 'flat') {
       // 槽轮-平轮-槽轮
@@ -213,8 +192,7 @@ const alignmentPairs = computed(() => {
         toIdx: nextIdx,
         middleIdx: middlePulleys[0].index,
         bea: calcBEAFlat(curr, mid, next),
-        twist: calcTwistFlat(curr, mid, next),
-        offset: null
+        twist: calcTwistFlat(curr, mid, next)
       })
     }
     // 其他情况（多个平轮等）暂不处理
@@ -234,12 +212,6 @@ function calcTwist(p1, p2) {
   const perp1 = Number(p1.perpendicularity) || 0
   const perp2 = Number(p2.perpendicularity) || 0
   return Math.abs(perp1 - perp2)
-}
-
-function calcOffset(p1, p2) {
-  const ch1 = Number(p1.centerHeightDiff) || 0
-  const ch2 = Number(p2.centerHeightDiff) || 0
-  return Math.abs(ch1 - ch2)
 }
 
 function calcBEAFlat(p1, pFlat, p2) {
@@ -405,34 +377,6 @@ function formatNum(val) {
 
 .result-table tbody tr:hover {
   background: #f8fafc;
-}
-
-.group-header {
-  font-size: 14px;
-}
-
-.group-header.group-groove {
-  background: #ecf5ff;
-  color: #409eff;
-}
-
-.group-header.group-flat {
-  background: #f0f9eb;
-  color: #67c23a;
-}
-
-th.group-groove {
-  background: #f5f9ff;
-}
-
-th.group-flat {
-  background: #f6fbf2;
-}
-
-.cell-na {
-  background: #fff5ec;
-  color: #e6a23c;
-  font-weight: 500;
 }
 
 .pair-codes {
