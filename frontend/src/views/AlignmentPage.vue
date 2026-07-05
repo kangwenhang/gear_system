@@ -36,7 +36,6 @@
               <th style="width: 160px">中心高 (mm)</th>
               <th style="width: 160px">垂直度 (°)</th>
               <th style="width: 160px">倾斜角度 (°)</th>
-              <th style="width: 160px">Twist (°)</th>
             </tr>
           </thead>
           <tbody>
