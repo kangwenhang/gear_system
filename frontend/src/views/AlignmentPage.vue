@@ -259,18 +259,28 @@ watchEffect(() => {
   })
 })
 
+function getU(p) {
+  const cp = contactParams.value[p.code]
+  if (!cp) return 0
+  const userTilt = Number(p.tiltAngle)
+  if (!isNaN(userTilt) && p.tiltAngle !== '') return userTilt
+  return cp.U
+}
+
 function calcV(p) {
   const cp = contactParams.value[p.code]
   if (!cp) return 0
   const T = Number(p.perpendicularity) || 0
-  return T * (Math.sin(deg2rad(cp.P)) * Math.sin(deg2rad(cp.U)) + Math.cos(deg2rad(cp.P)) * Math.cos(deg2rad(cp.U)))
+  const U = getU(p)
+  return T * (Math.sin(deg2rad(cp.P)) * Math.sin(deg2rad(U)) + Math.cos(deg2rad(cp.P)) * Math.cos(deg2rad(U)))
 }
 
 function calcW(p) {
   const cp = contactParams.value[p.code]
   if (!cp) return 0
   const T = Number(p.perpendicularity) || 0
-  return T * (Math.sin(deg2rad(cp.O)) * Math.sin(deg2rad(cp.U)) + Math.cos(deg2rad(cp.O)) * Math.cos(deg2rad(cp.U)))
+  const U = getU(p)
+  return T * (Math.sin(deg2rad(cp.O)) * Math.sin(deg2rad(U)) + Math.cos(deg2rad(cp.O)) * Math.cos(deg2rad(U)))
 }
 
 function calcFlatOffset(flatPulley, nextGroove) {
@@ -279,23 +289,30 @@ function calcFlatOffset(flatPulley, nextGroove) {
   if (!cpFlat || !cpNext) return { value: 0, debug: [] }
   const S_next = Number(nextGroove.centerHeightDiff) || 0
   const N_flat = cpFlat.N
-  const X_flat = Number(flatPulley.tiltAngle) || 0
+  const T_flat = Number(flatPulley.perpendicularity) || 0
+  const U_flat = getU(flatPulley)
+  const P_flat = cpFlat.P
+  const X_flat_rad = T_flat * (-Math.cos(deg2rad(P_flat)) * Math.sin(deg2rad(U_flat)) + Math.sin(deg2rad(P_flat)) * Math.cos(deg2rad(U_flat))) * Math.PI / 180
   const L_flat = cpFlat.L
   const V_flat = calcV(flatPulley)
   const L_next = cpNext.L
   const W_next = calcW(nextGroove)
-  const result = S_next + N_flat * Math.sin(deg2rad(X_flat)) + L_flat / 2 * Math.sin(deg2rad(V_flat)) - L_next / 2 * Math.sin(deg2rad(W_next))
+  const result = S_next + N_flat * Math.sin(X_flat_rad) + L_flat / 2 * Math.sin(deg2rad(V_flat)) - L_next / 2 * Math.sin(deg2rad(W_next))
   return {
     value: result,
     debug: [
       { name: 'S_next', value: S_next, desc: '下一个槽轮的中心高' },
       { name: 'N_flat', value: N_flat, desc: '平轮的N值（跨段长）' },
-      { name: 'X_flat', value: X_flat, desc: '平轮的倾斜角' },
+      { name: 'T_flat', value: T_flat, desc: '平轮的垂直度' },
+      { name: 'U_flat', value: U_flat, desc: '平轮的倾斜方向U' },
+      { name: 'P_flat', value: P_flat, desc: '平轮的Entry角P' },
+      { name: 'X_flat_rad', value: X_flat_rad, desc: '平轮X_flat（弧度）= T*(-cos(P)*sin(U)+sin(P)*cos(U))*PI/180' },
+      { name: 'X_flat_deg', value: X_flat_rad * 180 / Math.PI, desc: '平轮X_flat（度）' },
       { name: 'L_flat', value: L_flat, desc: '平轮的L值' },
       { name: 'V_flat', value: V_flat, desc: '平轮的V值（Entry侧Camber）' },
       { name: 'L_next', value: L_next, desc: '下一个槽轮的L值' },
       { name: 'W_next', value: W_next, desc: '下一个槽轮的W值（Exit侧Camber）' },
-      { name: 'N_flat*sin(X_flat)', value: N_flat * Math.sin(deg2rad(X_flat)), desc: '平轮倾斜角偏移量' },
+      { name: 'N_flat*sin(X_flat)', value: N_flat * Math.sin(X_flat_rad), desc: '平轮倾斜角偏移量' },
       { name: 'L_flat/2*sin(V_flat)', value: L_flat / 2 * Math.sin(deg2rad(V_flat)), desc: '平轮Entry侧偏移' },
       { name: 'L_next/2*sin(W_next)', value: L_next / 2 * Math.sin(deg2rad(W_next)), desc: '下一个槽轮Exit侧偏移' },
       { name: 'AB(Offset)', value: result, desc: '平轮Offset = S_next + N_flat*sin(X_flat) + L_flat/2*sin(V_flat) - L_next/2*sin(W_next)' }
