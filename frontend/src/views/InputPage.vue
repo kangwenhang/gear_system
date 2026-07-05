@@ -699,8 +699,8 @@ const beltParams = ref({
   elongation_rate: null,
   length_tolerance: '',
   life_coefficient: null,
-  flat_to_pitch: null,
-  pitch_to_effective: null,
+  flat_to_pitch: sharedStore.beltParams.flat_to_pitch ?? null,
+  pitch_to_effective: sharedStore.beltParams.pitch_to_effective ?? null,
   height: null
 })
 
@@ -943,7 +943,21 @@ const cellStyle = {
 
 const beltOptions = ref([])
 const manufacturerOptions = ref([])
-const tableData = ref([createRow(), createRow()])
+const tableData = ref(
+  sharedStore.pulleys.length > 0
+    ? sharedStore.pulleys.map(p => ({
+        name: p.name || '',
+        code: p.code || '',
+        x: p.x ?? null,
+        y: p.y ?? null,
+        flat_dia: p.flat_dia ?? null,
+        groove_dia: p.groove_dia ?? null,
+        type: p.type || 'groove',
+        inertia: p.inertia ?? null,
+        service_factor: p.service_factor ?? null
+      }))
+    : [createRow(), createRow()]
+)
 
 // 监听表格数据变化，自动推导旋转方向（仅在自动张紧轮模式下）
 watch(

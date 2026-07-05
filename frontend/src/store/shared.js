@@ -3,11 +3,16 @@ import { reactive } from 'vue'
 // 全局共享状态
 export const sharedStore = reactive({
   // 所有带轮数据（含直径、类型等完整信息）
-  pulleys: [],
+  pulleys: [
+    { code: 'FAN', name: 'FAN', type: 'groove', x: 0, y: 0, groove_dia: 194, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: '', perpendicularity: '', tiltAngle: '' },
+    { code: 'ALT', name: 'ALT', type: 'groove', x: 250, y: -80, groove_dia: 75, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: '', perpendicularity: '', tiltAngle: '' },
+    { code: 'AC', name: 'AC', type: 'groove', x: 268, y: 132.5, groove_dia: 110, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: '', perpendicularity: '', tiltAngle: '' },
+    { code: 'TEN', name: 'TEN', type: 'flat', x: 171.42, y: 17.35, groove_dia: null, flat_dia: 70, inertia: 0, service_factor: 1, rotation: -1, centerHeightDiff: '', perpendicularity: '', tiltAngle: '' }
+  ],
   // 皮带参数（含 flat_to_pitch、pitch_to_effective 等）
   beltParams: {
-    flat_to_pitch: null,
-    pitch_to_effective: null
+    flat_to_pitch: 1.5,
+    pitch_to_effective: 0.99
   },
   // 皮带完整参数
   beltFullParams: {
