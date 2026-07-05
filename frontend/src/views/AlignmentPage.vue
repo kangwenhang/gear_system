@@ -34,7 +34,8 @@
               <th>带轮编号</th>
               <th>带轮名称</th>
               <th style="width: 160px">中心高 (mm)</th>
-              <th style="width: 180px">垂直度 (°)</th>
+              <th style="width: 160px">垂直度 (°)</th>
+              <th style="width: 160px">倾斜角度 (°)</th>
             </tr>
           </thead>
           <tbody>
@@ -54,6 +55,13 @@
               <td>
                 <el-input
                 v-model="p.perpendicularity"
+                placeholder="请输入"
+                style="width: 100%; text-align: center"
+              />
+              </td>
+              <td>
+                <el-input
+                v-model="p.tiltAngle"
                 placeholder="请输入"
                 style="width: 100%; text-align: center"
               />
@@ -90,6 +98,7 @@
               <th style="width: 140px">类型</th>
               <th>切入角BEA (°)</th>
               <th>Twist (°)</th>
+              <th>Offset</th>
             </tr>
           </thead>
           <tbody>
@@ -111,6 +120,7 @@
               </td>
               <td>{{ formatNum(pair.bea) }}</td>
               <td>{{ formatNum(pair.twist) }}</td>
+              <td>{{ pair.offset === null ? 'N/A' : formatNum(pair.offset) }}</td>
             </tr>
           </tbody>
         </table>
@@ -127,26 +137,51 @@
 import { computed, watchEffect } from 'vue'
 import { sharedStore } from '../store/shared.js'
 
-// 确保每个带轮都有对齐度相关字段（副作用放在 watchEffect 中）
+function deg2rad(deg) { return deg * Math.PI / 180 }
+
 watchEffect(() => {
   sharedStore.pulleys.forEach(p => {
     if (p.centerHeightDiff === undefined) p.centerHeightDiff = ''
     if (p.perpendicularity === undefined) p.perpendicularity = ''
+    if (p.tiltAngle === undefined) p.tiltAngle = ''
   })
 })
 
-// 直接使用共享 store 中的带轮数组
 const pulleys = computed(() => sharedStore.pulleys)
+const contactParams = computed(() => sharedStore.contactParams)
 
-// 生成带轮对（按槽轮分组，环形轮系）
-// 逻辑：找到所有槽轮，每两个相邻槽轮构成一对
-//   - 中间无其他带轮 → 槽轮-槽轮
-//   - 中间有平轮 → 槽轮-平轮-槽轮
+function calcV(p) {
+  const cp = contactParams.value[p.code]
+  if (!cp) return 0
+  const T = Number(p.perpendicularity) || 0
+  return T * (Math.sin(deg2rad(cp.P)) * Math.sin(deg2rad(cp.U)) + Math.cos(deg2rad(cp.P)) * Math.cos(deg2rad(cp.U)))
+}
+
+function calcW(p) {
+  const cp = contactParams.value[p.code]
+  if (!cp) return 0
+  const T = Number(p.perpendicularity) || 0
+  return T * (Math.sin(deg2rad(cp.O)) * Math.sin(deg2rad(cp.U)) + Math.cos(deg2rad(cp.O)) * Math.cos(deg2rad(cp.U)))
+}
+
+function calcFlatOffset(flatPulley, nextGroove) {
+  const cpFlat = contactParams.value[flatPulley.code]
+  const cpNext = contactParams.value[nextGroove.code]
+  if (!cpFlat || !cpNext) return 0
+  const S_next = Number(nextGroove.centerHeightDiff) || 0
+  const N_flat = cpFlat.N
+  const X_flat = Number(flatPulley.tiltAngle) || 0
+  const L_flat = cpFlat.L
+  const V_flat = calcV(flatPulley)
+  const L_next = cpNext.L
+  const W_next = calcW(nextGroove)
+  return S_next + N_flat * Math.sin(deg2rad(X_flat)) + L_flat / 2 * Math.sin(deg2rad(V_flat)) - L_next / 2 * Math.sin(deg2rad(W_next))
+}
+
 const alignmentPairs = computed(() => {
   const list = sharedStore.pulleys
   if (list.length < 2) return []
 
-  // 收集所有槽轮的索引
   const grooveIndices = []
   list.forEach((p, i) => {
     if (p.type === 'groove') grooveIndices.push(i)
@@ -160,7 +195,6 @@ const alignmentPairs = computed(() => {
     const curr = list[currIdx]
     const next = list[nextIdx]
 
-    // 找两个槽轮之间的带轮（不包含两端槽轮）
     const middlePulleys = []
     let j = (currIdx + 1) % list.length
     while (j !== nextIdx) {
@@ -168,64 +202,62 @@ const alignmentPairs = computed(() => {
       j = (j + 1) % list.length
     }
 
+    const cpCurr = contactParams.value[curr.code]
+    const cpNext = contactParams.value[next.code]
+    if (!cpCurr || !cpNext) continue
+
     if (middlePulleys.length === 0) {
-      // 槽轮-槽轮
+      const S1 = Number(curr.centerHeightDiff) || 0
+      const S2 = Number(next.centerHeightDiff) || 0
+      const L1 = cpCurr.L, L2 = cpNext.L
+      const V1 = calcV(curr), W2 = calcW(next)
+      const N = cpCurr.N, X = Number(curr.tiltAngle) || 0
+      const K1 = cpCurr.K, K2 = cpNext.K
+
+      const effY1 = S1 - L1 / 2 * Math.sin(deg2rad(V1))
+      const effY2 = S2 - L2 / 2 * Math.sin(deg2rad(W2))
+      const bea = N > 0.001 ? Math.atan((effY2 - effY1) / N) * 180 / Math.PI - X : 0
+      const twist = K1 * V1 - K2 * W2
+
       pairs.push({
         type: 'groove-groove',
         fromCode: curr.code || '--',
         toCode: next.code || '--',
         middleCode: null,
-        fromIdx: currIdx,
-        toIdx: nextIdx,
-        bea: calcBEA(curr, next),
-        twist: calcTwist(curr, next)
+        bea,
+        twist,
+        offset: null
       })
     } else if (middlePulleys.length === 1 && middlePulleys[0].pulley.type === 'flat') {
-      // 槽轮-平轮-槽轮
       const mid = middlePulleys[0].pulley
+      const cpMid = contactParams.value[mid.code]
+      if (!cpMid) continue
+
+      const AB = calcFlatOffset(mid, next)
+      const S1 = Number(curr.centerHeightDiff) || 0
+      const L1 = cpCurr.L, V1 = calcV(curr)
+      const L_mid = cpMid.L, W_mid = calcW(mid)
+      const N = cpCurr.N, X = Number(curr.tiltAngle) || 0
+      const K1 = cpCurr.K, K_mid = cpMid.K
+
+      const effY1 = S1 - L1 / 2 * Math.sin(deg2rad(V1))
+      const effY2 = AB - L_mid / 2 * Math.sin(deg2rad(W_mid))
+      const bea = N > 0.001 ? Math.atan((effY2 - effY1) / N) * 180 / Math.PI - X : 0
+      const twist = K1 * V1 - K_mid * W_mid
+
       pairs.push({
         type: 'groove-flat-groove',
         fromCode: curr.code || '--',
         toCode: next.code || '--',
         middleCode: mid.code || '--',
-        fromIdx: currIdx,
-        toIdx: nextIdx,
-        middleIdx: middlePulleys[0].index,
-        bea: calcBEAFlat(curr, mid, next),
-        twist: calcTwistFlat(curr, mid, next)
+        bea,
+        twist,
+        offset: AB
       })
     }
-    // 其他情况（多个平轮等）暂不处理
   }
   return pairs
 })
-
-// ===== 占位计算公式（待用户提供正式公式后替换）=====
-function calcBEA(p1, p2) {
-  const ch1 = Number(p1.centerHeightDiff) || 0
-  const ch2 = Number(p2.centerHeightDiff) || 0
-  const dx = Math.abs((p1.x || 0) - (p2.x || 0)) || 1
-  return Math.atan(Math.abs(ch2 - ch1) / dx) * 180 / Math.PI
-}
-
-function calcTwist(p1, p2) {
-  const perp1 = Number(p1.perpendicularity) || 0
-  const perp2 = Number(p2.perpendicularity) || 0
-  return Math.abs(perp1 - perp2)
-}
-
-function calcBEAFlat(p1, pFlat, p2) {
-  const ch1 = Number(p1.centerHeightDiff) || 0
-  const ch2 = Number(p2.centerHeightDiff) || 0
-  const dx = Math.abs((p1.x || 0) - (p2.x || 0)) || 1
-  return Math.atan(Math.abs(ch2 - ch1) / dx) * 180 / Math.PI
-}
-
-function calcTwistFlat(p1, pFlat, p2) {
-  const perp1 = Number(p1.perpendicularity) || 0
-  const perp2 = Number(p2.perpendicularity) || 0
-  return Math.abs(perp1 - perp2)
-}
 
 function formatNum(val) {
   if (val === null || val === undefined || isNaN(val) || val === '') return '--'
