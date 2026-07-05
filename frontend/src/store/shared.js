@@ -4,10 +4,10 @@ import { reactive } from 'vue'
 export const sharedStore = reactive({
   // 所有带轮数据（含直径、类型等完整信息）
   pulleys: [
-    { code: 'FAN', name: 'FAN', type: 'groove', x: 0, y: 0, groove_dia: 194, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: '', perpendicularity: '', tiltAngle: '' },
-    { code: 'ALT', name: 'ALT', type: 'groove', x: 250, y: -80, groove_dia: 75, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: '', perpendicularity: '', tiltAngle: '' },
-    { code: 'AC', name: 'AC', type: 'groove', x: 268, y: 132.5, groove_dia: 110, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: '', perpendicularity: '', tiltAngle: '' },
-    { code: 'TEN', name: 'TEN', type: 'flat', x: 171.42, y: 17.35, groove_dia: null, flat_dia: 70, inertia: 0, service_factor: 1, rotation: -1, centerHeightDiff: '', perpendicularity: '', tiltAngle: '' }
+    { code: 'FAN', name: 'FAN', type: 'groove', x: 0, y: 0, groove_dia: 194, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: 0, perpendicularity: 0, tiltAngle: '' },
+    { code: 'ALT', name: 'ALT', type: 'groove', x: 250, y: -80, groove_dia: 75, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: 0, perpendicularity: 0, tiltAngle: '' },
+    { code: 'AC', name: 'AC', type: 'groove', x: 268, y: 132.5, groove_dia: 110, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: 0, perpendicularity: 0.5, tiltAngle: '' },
+    { code: 'TEN', name: 'TEN', type: 'flat', x: 171.42, y: 17.35, groove_dia: null, flat_dia: 70, inertia: 0, service_factor: 1, rotation: -1, centerHeightDiff: 0, perpendicularity: 0.5, tiltAngle: '' }
   ],
   // 皮带参数（含 flat_to_pitch、pitch_to_effective 等）
   beltParams: {

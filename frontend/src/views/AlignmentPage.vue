@@ -178,6 +178,34 @@
         </table>
       </div>
 
+      <div class="debug-section">
+        <div class="debug-title">每个带轮的V/W值</div>
+        <table class="debug-table">
+          <thead>
+            <tr>
+              <th>带轮</th>
+              <th>类型</th>
+              <th>中心高S</th>
+              <th>垂直度T</th>
+              <th>倾斜角X</th>
+              <th>V</th>
+              <th>W</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in debugVWList" :key="p.code">
+              <td>{{ p.code }}</td>
+              <td>{{ p.type === 'groove' ? '槽轮' : '平轮' }}</td>
+              <td>{{ formatNum(p.S) }}</td>
+              <td>{{ formatNum(p.T) }}</td>
+              <td>{{ formatNum(p.X) }}</td>
+              <td>{{ formatNum(p.V) }}</td>
+              <td>{{ formatNum(p.W) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <div class="debug-section" v-if="alignmentPairs.length > 0">
         <div class="debug-title">带轮对计算详情</div>
         <div v-for="(pair, idx) in alignmentPairs" :key="idx" class="pair-debug">
@@ -188,6 +216,25 @@
             <div>BEA: {{ formatNum(pair.bea) }}°</div>
             <div>Twist: {{ formatNum(pair.twist) }}°</div>
             <div>Offset: {{ pair.offset === null ? 'N/A' : formatNum(pair.offset) }}</div>
+          </div>
+          <div v-if="pair.debug" class="pair-debug-details">
+            <div class="debug-subtitle">详细计算过程：</div>
+            <table class="debug-table">
+              <thead>
+                <tr>
+                  <th>变量</th>
+                  <th>值</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, i) in pair.debug" :key="i">
+                  <td>{{ item.name }}</td>
+                  <td>{{ formatNum(item.value) }}</td>
+                  <td style="text-align: left">{{ item.desc }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -229,7 +276,7 @@ function calcW(p) {
 function calcFlatOffset(flatPulley, nextGroove) {
   const cpFlat = contactParams.value[flatPulley.code]
   const cpNext = contactParams.value[nextGroove.code]
-  if (!cpFlat || !cpNext) return 0
+  if (!cpFlat || !cpNext) return { value: 0, debug: [] }
   const S_next = Number(nextGroove.centerHeightDiff) || 0
   const N_flat = cpFlat.N
   const X_flat = Number(flatPulley.tiltAngle) || 0
@@ -237,7 +284,23 @@ function calcFlatOffset(flatPulley, nextGroove) {
   const V_flat = calcV(flatPulley)
   const L_next = cpNext.L
   const W_next = calcW(nextGroove)
-  return S_next + N_flat * Math.sin(deg2rad(X_flat)) + L_flat / 2 * Math.sin(deg2rad(V_flat)) - L_next / 2 * Math.sin(deg2rad(W_next))
+  const result = S_next + N_flat * Math.sin(deg2rad(X_flat)) + L_flat / 2 * Math.sin(deg2rad(V_flat)) - L_next / 2 * Math.sin(deg2rad(W_next))
+  return {
+    value: result,
+    debug: [
+      { name: 'S_next', value: S_next, desc: '下一个槽轮的中心高' },
+      { name: 'N_flat', value: N_flat, desc: '平轮的N值（跨段长）' },
+      { name: 'X_flat', value: X_flat, desc: '平轮的倾斜角' },
+      { name: 'L_flat', value: L_flat, desc: '平轮的L值' },
+      { name: 'V_flat', value: V_flat, desc: '平轮的V值（Entry侧Camber）' },
+      { name: 'L_next', value: L_next, desc: '下一个槽轮的L值' },
+      { name: 'W_next', value: W_next, desc: '下一个槽轮的W值（Exit侧Camber）' },
+      { name: 'N_flat*sin(X_flat)', value: N_flat * Math.sin(deg2rad(X_flat)), desc: '平轮倾斜角偏移量' },
+      { name: 'L_flat/2*sin(V_flat)', value: L_flat / 2 * Math.sin(deg2rad(V_flat)), desc: '平轮Entry侧偏移' },
+      { name: 'L_next/2*sin(W_next)', value: L_next / 2 * Math.sin(deg2rad(W_next)), desc: '下一个槽轮Exit侧偏移' },
+      { name: 'AB(Offset)', value: result, desc: '平轮Offset = S_next + N_flat*sin(X_flat) + L_flat/2*sin(V_flat) - L_next/2*sin(W_next)' }
+    ]
+  }
 }
 
 const alignmentPairs = computed(() => {
@@ -281,6 +344,23 @@ const alignmentPairs = computed(() => {
       const bea = N > 0.001 ? Math.atan((effY2 - effY1) / N) * 180 / Math.PI - X : 0
       const twist = K1 * V1 - K2 * W2
 
+      const debug = [
+        { name: 'S1', value: S1, desc: '当前槽轮中心高' },
+        { name: 'S2', value: S2, desc: '下一个槽轮中心高' },
+        { name: 'L1', value: L1, desc: '当前槽轮L值' },
+        { name: 'L2', value: L2, desc: '下一个槽轮L值' },
+        { name: 'V1', value: V1, desc: '当前槽轮V值（Entry侧Camber）' },
+        { name: 'W2', value: W2, desc: '下一个槽轮W值（Exit侧Camber）' },
+        { name: 'N', value: N, desc: '跨段长N' },
+        { name: 'X', value: X, desc: '当前槽轮倾斜角' },
+        { name: 'K1', value: K1, desc: '当前槽轮K值' },
+        { name: 'K2', value: K2, desc: '下一个槽轮K值' },
+        { name: 'effY1 = S1 - L1/2*sin(V1)', value: effY1, desc: '当前槽轮有效Y位置' },
+        { name: 'effY2 = S2 - L2/2*sin(W2)', value: effY2, desc: '下一个槽轮有效Y位置' },
+        { name: 'BEA = atan((effY2-effY1)/N)*180/PI - X', value: bea, desc: '切入角BEA' },
+        { name: 'Twist = K1*V1 - K2*W2', value: twist, desc: '扭转角Twist' }
+      ]
+
       pairs.push({
         type: 'groove-groove',
         fromCode: curr.code || '--',
@@ -288,14 +368,16 @@ const alignmentPairs = computed(() => {
         middleCode: null,
         bea,
         twist,
-        offset: null
+        offset: null,
+        debug
       })
     } else if (middlePulleys.length === 1 && middlePulleys[0].pulley.type === 'flat') {
       const mid = middlePulleys[0].pulley
       const cpMid = contactParams.value[mid.code]
       if (!cpMid) continue
 
-      const AB = calcFlatOffset(mid, next)
+      const offsetResult = calcFlatOffset(mid, next)
+      const AB = offsetResult.value
       const S1 = Number(curr.centerHeightDiff) || 0
       const L1 = cpCurr.L, V1 = calcV(curr)
       const L_mid = cpMid.L, W_mid = calcW(mid)
@@ -307,6 +389,24 @@ const alignmentPairs = computed(() => {
       const bea = N > 0.001 ? Math.atan((effY2 - effY1) / N) * 180 / Math.PI - X : 0
       const twist = K1 * V1 - K_mid * W_mid
 
+      const debug = [
+        { name: 'S1 (curr槽轮中心高)', value: S1, desc: '第一个槽轮（curr）的中心高' },
+        { name: 'L1 (curr槽轮L)', value: L1, desc: '第一个槽轮的L值' },
+        { name: 'V1 (curr槽轮V)', value: V1, desc: '第一个槽轮的V值（Entry侧Camber）' },
+        { name: 'L_mid (平轮L)', value: L_mid, desc: '中间平轮的L值' },
+        { name: 'W_mid (平轮W)', value: W_mid, desc: '中间平轮的W值（Exit侧Camber）' },
+        { name: 'N (curr槽轮N)', value: N, desc: '第一个槽轮的N值（跨段长）' },
+        { name: 'X (curr槽轮倾斜角)', value: X, desc: '第一个槽轮的倾斜角' },
+        { name: 'K1 (curr槽轮K)', value: K1, desc: '第一个槽轮的K值' },
+        { name: 'K_mid (平轮K)', value: K_mid, desc: '中间平轮的K值' },
+        ...offsetResult.debug.map(d => ({ ...d, name: 'Offset_' + d.name })),
+        { name: 'effY1 = S1 - L1/2*sin(V1)', value: effY1, desc: '第一个槽轮侧有效Y位置' },
+        { name: 'effY2 = AB - L_mid/2*sin(W_mid)', value: effY2, desc: '平轮侧有效Y位置' },
+        { name: 'effY2 - effY1', value: effY2 - effY1, desc: '有效Y差值' },
+        { name: 'BEA = atan((effY2-effY1)/N)*180/PI - X', value: bea, desc: '切入角BEA' },
+        { name: 'Twist = K1*V1 - K_mid*W_mid', value: twist, desc: '扭转角Twist' }
+      ]
+
       pairs.push({
         type: 'groove-flat-groove',
         fromCode: curr.code || '--',
@@ -314,16 +414,50 @@ const alignmentPairs = computed(() => {
         middleCode: mid.code || '--',
         bea,
         twist,
-        offset: AB
+        offset: AB,
+        debug
       })
     }
   }
   return pairs
 })
 
+const debugPulleyList = computed(() => {
+  return pulleys.value.map(p => {
+    const cp = contactParams.value[p.code] || {}
+    return {
+      code: p.code,
+      K: cp.K,
+      J: cp.J,
+      L: cp.L,
+      M: cp.M,
+      N: cp.N,
+      P: cp.P,
+      O: cp.O,
+      Q: cp.Q,
+      U: cp.U
+    }
+  })
+})
+
+const debugVWList = computed(() => {
+  return pulleys.value.map(p => {
+    const cp = contactParams.value[p.code] || {}
+    return {
+      code: p.code,
+      type: p.type,
+      S: Number(p.centerHeightDiff) || 0,
+      T: Number(p.perpendicularity) || 0,
+      X: Number(p.tiltAngle) || 0,
+      V: calcV(p),
+      W: calcW(p)
+    }
+  })
+})
+
 function formatNum(val) {
   if (val === null || val === undefined || isNaN(val) || val === '') return '--'
-  return Number(val).toFixed(2)
+  return Number(val).toFixed(4)
 }
 </script>
 
@@ -545,6 +679,19 @@ function formatNum(val) {
   gap: 20px;
   font-size: 12px;
   color: #606266;
+}
+
+.pair-debug-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #dcdfe6;
+}
+
+.debug-subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #67c23a;
+  margin-bottom: 8px;
 }
 
 /* 移动端适配 */
