@@ -130,6 +130,68 @@
     <el-card v-else-if="pulleys.length > 0" shadow="hover" class="result-card result-empty">
       <el-empty description="带轮数量不足或无法组成带轮对，请检查带轮类型（至少需要2个槽轮）" />
     </el-card>
+
+    <!-- 调试信息 -->
+    <el-card v-if="pulleys.length > 0" shadow="hover" class="debug-card">
+      <template #header>
+        <div class="card-header">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <span>调试信息</span>
+        </div>
+      </template>
+
+      <div class="debug-section">
+        <div class="debug-title">Contact参数（每个带轮）</div>
+        <table class="debug-table">
+          <thead>
+            <tr>
+              <th>带轮</th>
+              <th>K</th>
+              <th>J</th>
+              <th>L</th>
+              <th>M</th>
+              <th>N</th>
+              <th>P</th>
+              <th>O</th>
+              <th>Q</th>
+              <th>U</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in debugPulleyList" :key="p.code">
+              <td>{{ p.code }}</td>
+              <td>{{ formatNum(p.K) }}</td>
+              <td>{{ formatNum(p.J) }}</td>
+              <td>{{ formatNum(p.L) }}</td>
+              <td>{{ formatNum(p.M) }}</td>
+              <td>{{ formatNum(p.N) }}</td>
+              <td>{{ formatNum(p.P) }}</td>
+              <td>{{ formatNum(p.O) }}</td>
+              <td>{{ formatNum(p.Q) }}</td>
+              <td>{{ formatNum(p.U) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="debug-section" v-if="alignmentPairs.length > 0">
+        <div class="debug-title">带轮对计算详情</div>
+        <div v-for="(pair, idx) in alignmentPairs" :key="idx" class="pair-debug">
+          <div class="pair-debug-title">
+            第{{ idx + 1 }}组：{{ pair.fromCode }} → {{ pair.middleCode || '' }} {{ pair.middleCode ? '→' : '' }} {{ pair.toCode }} ({{ pair.type === 'groove-groove' ? '槽轮-槽轮' : '槽轮-平轮-槽轮' }})
+          </div>
+          <div class="pair-debug-content">
+            <div>BEA: {{ formatNum(pair.bea) }}°</div>
+            <div>Twist: {{ formatNum(pair.twist) }}°</div>
+            <div>Offset: {{ pair.offset === null ? 'N/A' : formatNum(pair.offset) }}</div>
+          </div>
+        </div>
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -139,6 +201,9 @@ import { sharedStore } from '../store/shared.js'
 
 function deg2rad(deg) { return deg * Math.PI / 180 }
 
+const pulleys = computed(() => sharedStore.pulleys)
+const contactParams = computed(() => sharedStore.contactParams)
+
 watchEffect(() => {
   sharedStore.pulleys.forEach(p => {
     if (p.centerHeightDiff === undefined) p.centerHeightDiff = ''
@@ -146,9 +211,6 @@ watchEffect(() => {
     if (p.tiltAngle === undefined) p.tiltAngle = ''
   })
 })
-
-const pulleys = computed(() => sharedStore.pulleys)
-const contactParams = computed(() => sharedStore.contactParams)
 
 function calcV(p) {
   const cp = contactParams.value[p.code]
@@ -424,6 +486,65 @@ function formatNum(val) {
 
 .pulley-code-flat {
   color: #67c23a !important;
+}
+
+.debug-card {
+  margin-top: 20px;
+}
+
+.debug-section {
+  margin-bottom: 20px;
+}
+
+.debug-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 10px;
+}
+
+.debug-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.debug-table th,
+.debug-table td {
+  border: 1px solid #e4e7ed;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.debug-table th {
+  background: #f0f5ff;
+  color: #606266;
+  font-weight: 600;
+}
+
+.debug-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.pair-debug {
+  background: #f5f7fa;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.pair-debug-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 8px;
+}
+
+.pair-debug-content {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: #606266;
 }
 
 /* 移动端适配 */

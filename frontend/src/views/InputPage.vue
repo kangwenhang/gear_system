@@ -1088,7 +1088,7 @@ function calcContactParams() {
   }
 
   for (let i = 0; i < n; i++) {
-    Q[i] = ((K[i] * (O[i] - P[i])) % 360 + 360) % 360
+    Q[i] = ((K[i] * (P[i] - O[i])) % 360 + 360) % 360
   }
 
   for (let i = 0; i < n; i++) {
