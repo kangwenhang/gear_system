@@ -36,6 +36,7 @@
               <th style="width: 160px">中心高 (mm)</th>
               <th style="width: 160px">垂直度 (°)</th>
               <th style="width: 160px">倾斜角度 (°)</th>
+              <th style="width: 160px">Twist (°)</th>
             </tr>
           </thead>
           <tbody>
@@ -65,6 +66,9 @@
                 placeholder="请输入"
                 style="width: 100%; text-align: center"
               />
+              </td>
+              <td style="text-align: center; color: #606266">
+                {{ calcTwistDisplay(p) }}
               </td>
             </tr>
           </tbody>
@@ -281,6 +285,11 @@ function calcW(p) {
   const T = Number(p.perpendicularity) || 0
   const U = getU(p)
   return T * (Math.sin(deg2rad(cp.O)) * Math.sin(deg2rad(U)) + Math.cos(deg2rad(cp.O)) * Math.cos(deg2rad(U)))
+}
+
+function calcTwistDisplay(p) {
+  const v = calcV(p)
+  return isNaN(v) ? '--' : v.toFixed(4)
 }
 
 function calcFlatOffset(flatPulley, nextGroove) {
