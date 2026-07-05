@@ -40,5 +40,9 @@ export const sharedStore = reactive({
   // 对齐度计算结果
   alignmentResults: [],
   // 触发对齐度计算的信号
-  calcTrigger: 0
+  calcTrigger: 0,
+  // 最后一个带轮序号
+  lastPulleyIndex: 0,
+  // Contact参数（每个带轮的K/J/L/M/N/P/O/Q/U）
+  contactParams: {}
 })

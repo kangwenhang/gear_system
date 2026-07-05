@@ -983,6 +983,124 @@ watch(
   { deep: true, immediate: true }
 )
 
+// 计算Contact参数（K/J/L/M/N/P/O/Q/U）并同步到共享store
+function calcContactParams() {
+  const list = sharedStore.pulleys.filter(p => p.code && p.x != null && p.y != null)
+  const n = list.length
+  sharedStore.lastPulleyIndex = n
+  if (n < 2) {
+    sharedStore.contactParams = {}
+    return
+  }
+
+  const C4 = Number(sharedStore.beltParams.pitch_to_effective) || 0
+  const C5 = Number(sharedStore.beltParams.flat_to_pitch) || 0
+
+  const K = [], J = [], L = [], M = [], N = [], P = [], O = [], Q = [], U = []
+
+  for (let i = 0; i < n; i++) {
+    const p = list[i]
+    const isGroove = p.type === 'groove'
+    K[i] = isGroove ? 1 : -1
+    J[i] = isGroove ? (Number(p.groove_dia) || 0) + 0.99 : (Number(p.flat_dia) || 0)
+    L[i] = J[i] + 2 * (isGroove ? C4 : C5)
+  }
+
+  for (let i = 0; i < n; i++) {
+    const curr = list[i]
+    const nextIdx = (i + 1) % n
+    const next = list[nextIdx]
+    const first = list[0]
+
+    let target, targetIdx
+    if (i === n - 1) {
+      target = first
+      targetIdx = 0
+    } else {
+      target = next
+      targetIdx = nextIdx
+    }
+
+    const dx = Number(target.x || 0) - Number(curr.x || 0)
+    const dy = Number(target.y || 0) - Number(curr.y || 0)
+    M[i] = Math.sqrt(dx * dx + dy * dy)
+
+    const halfDiff = K[targetIdx] * L[targetIdx] / 2 - K[i] * L[i] / 2
+    const nSq = M[i] * M[i] - halfDiff * halfDiff
+    N[i] = Math.sqrt(Math.max(0, nSq))
+
+    let baseAngle, signTerm
+
+    if (i === n - 1) {
+      if (Number(first.y) === Number(curr.y) && Number(first.x) !== Number(curr.x)) {
+        baseAngle = Number(first.x) < Number(curr.x) ? Math.PI : 0
+      } else {
+        baseAngle = Math.acos(Math.max(-1, Math.min(1, dx / M[i]))) * Math.sign(dy)
+      }
+
+      const kl = K[i] * K[0]
+      const absHalf = Math.abs(K[i] * L[i] / 2 - K[0] * L[0] / 2)
+      let acosVal
+      if (kl > 0) {
+        acosVal = L[i] < L[0] ? Math.PI - Math.acos(Math.max(-1, Math.min(1, absHalf / M[i]))) : Math.acos(Math.max(-1, Math.min(1, absHalf / M[i])))
+      } else {
+        acosVal = Math.acos(Math.max(-1, Math.min(1, absHalf / M[i])))
+      }
+      signTerm = K[i] * acosVal
+    } else {
+      if (Number(next.y) === Number(curr.y) && Number(next.x) !== Number(curr.x)) {
+        baseAngle = Number(next.x) < Number(curr.x) ? Math.PI : 0
+      } else {
+        baseAngle = Math.acos(Math.max(-1, Math.min(1, dx / M[i]))) * Math.sign(dy)
+      }
+
+      const kl = K[i] * K[nextIdx]
+      const absHalf = Math.abs(K[i] * L[i] / 2 - K[nextIdx] * L[nextIdx] / 2)
+      let acosVal
+      if (kl > 0) {
+        acosVal = L[i] < L[nextIdx] ? Math.PI - Math.acos(Math.max(-1, Math.min(1, absHalf / M[i]))) : Math.acos(Math.max(-1, Math.min(1, absHalf / M[i])))
+      } else {
+        acosVal = Math.acos(Math.max(-1, Math.min(1, absHalf / M[i])))
+      }
+      signTerm = K[i] * acosVal
+    }
+
+    P[i] = (baseAngle - signTerm) * 180 / Math.PI
+  }
+
+  O[0] = P[n - 1] + (K[0] === K[n - 1] ? 0 : 180)
+  for (let i = 1; i < n; i++) {
+    O[i] = P[i - 1] + (K[i] === K[i - 1] ? 0 : 180)
+  }
+
+  for (let i = 0; i < n; i++) {
+    Q[i] = ((K[i] * (O[i] - P[i])) % 360 + 360) % 360
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (K[i] === 1) {
+      U[i] = O[i] - 180 + Q[i] / 2
+    } else {
+      U[i] = O[i] - Q[i] / 2 - 180
+    }
+  }
+
+  const params = {}
+  for (let i = 0; i < n; i++) {
+    const code = list[i].code || `p${i}`
+    params[code] = { K: K[i], J: J[i], L: L[i], M: M[i], N: N[i], P: P[i], O: O[i], Q: Q[i], U: U[i] }
+  }
+  sharedStore.contactParams = params
+}
+
+watch(
+  () => [sharedStore.pulleys.map(p => ({ code: p.code, x: p.x, y: p.y, type: p.type, groove_dia: p.groove_dia, flat_dia: p.flat_dia })), sharedStore.beltParams.flat_to_pitch, sharedStore.beltParams.pitch_to_effective],
+  () => {
+    calcContactParams()
+  },
+  { deep: true, immediate: true }
+)
+
 // 监听表格数据变化，检测张紧轮XY
 function checkTensionerXY() {
   const lastRow = tableData.value[tableData.value.length - 1]
