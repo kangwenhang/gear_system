@@ -274,7 +274,7 @@ function calcV(p) {
   if (!cp) return 0
   const T = Number(p.perpendicularity) || 0
   const U = getU(p)
-  return T * (Math.sin(deg2rad(cp.P)) * Math.sin(deg2rad(U)) + Math.cos(deg2rad(cp.P)) * Math.cos(deg2rad(U)))
+  return T * (-Math.cos(deg2rad(cp.P)) * Math.sin(deg2rad(U)) + Math.sin(deg2rad(cp.P)) * Math.cos(deg2rad(U)))
 }
 
 function calcW(p) {
@@ -282,7 +282,7 @@ function calcW(p) {
   if (!cp) return 0
   const T = Number(p.perpendicularity) || 0
   const U = getU(p)
-  return T * (Math.sin(deg2rad(cp.O)) * Math.sin(deg2rad(U)) + Math.cos(deg2rad(cp.O)) * Math.cos(deg2rad(U)))
+  return T * (-Math.cos(deg2rad(cp.O)) * Math.sin(deg2rad(U)) + Math.sin(deg2rad(cp.O)) * Math.cos(deg2rad(U)))
 }
 
 function calcTwistDisplay(p) {
