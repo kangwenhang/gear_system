@@ -35,7 +35,7 @@
               <th>带轮名称</th>
               <th style="width: 160px">中心高 (mm)</th>
               <th style="width: 160px">垂直度 (°)</th>
-              <th style="width: 160px">倾斜角度 (°)</th>
+              <th style="width: 160px">倾斜方向 (°)</th>
               <th style="width: 160px">Twist (°)</th>
             </tr>
           </thead>
@@ -174,14 +174,14 @@
               <td>{{ formatNum(p.P) }}</td>
               <td>{{ formatNum(p.O) }}</td>
               <td>{{ formatNum(p.Q) }}</td>
-              <td>{{ formatNum(p.U) }}</td>
+              <td>{{ formatNum(p.U) }}{{ p.UFromInput ? ' (输入)' : ' (计算)' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div class="debug-section">
-        <div class="debug-title">每个带轮的V/W值</div>
+        <div class="debug-title">每个带轮的V/W/X/Y值</div>
         <table class="debug-table">
           <thead>
             <tr>
@@ -189,9 +189,10 @@
               <th>类型</th>
               <th>中心高S</th>
               <th>垂直度T</th>
-              <th>倾斜角X</th>
               <th>V</th>
               <th>W</th>
+              <th>X</th>
+              <th>Y</th>
             </tr>
           </thead>
           <tbody>
@@ -200,9 +201,10 @@
               <td>{{ p.type === 'groove' ? '槽轮' : '平轮' }}</td>
               <td>{{ formatNum(p.S) }}</td>
               <td>{{ formatNum(p.T) }}</td>
-              <td>{{ formatNum(p.X) }}</td>
               <td>{{ formatNum(p.V) }}</td>
               <td>{{ formatNum(p.W) }}</td>
+              <td>{{ formatNum(p.X) }}</td>
+              <td>{{ formatNum(p.Y) }}</td>
             </tr>
           </tbody>
         </table>
@@ -245,10 +247,9 @@
 </template>
 
 <script setup>
-import { computed, watchEffect } from 'vue'
+import { ref, computed, watchEffect, watch } from 'vue'
 import { sharedStore } from '../store/shared.js'
-
-function deg2rad(deg) { return deg * Math.PI / 180 }
+import { calcAlignment as apiCalcAlignment } from '../api/pulley.js'
 
 const pulleys = computed(() => sharedStore.pulleys)
 const contactParams = computed(() => sharedStore.contactParams)
@@ -261,223 +262,56 @@ watchEffect(() => {
   })
 })
 
-function getU(p) {
-  const cp = contactParams.value[p.code]
-  if (!cp) return 0
-  const userTilt = Number(p.tiltAngle)
-  if (!isNaN(userTilt) && p.tiltAngle !== '') return userTilt
-  return cp.U
-}
+// 后端返回的计算结果
+const alignmentResult = ref({ per_pulley: [], pairs: [] })
 
-function calcV(p) {
-  const cp = contactParams.value[p.code]
-  if (!cp) return 0
-  const T = Number(p.perpendicularity) || 0
-  const U = getU(p)
-  return T * (-Math.cos(deg2rad(cp.P)) * Math.sin(deg2rad(U)) + Math.sin(deg2rad(cp.P)) * Math.cos(deg2rad(U)))
-}
-
-function calcW(p) {
-  const cp = contactParams.value[p.code]
-  if (!cp) return 0
-  const T = Number(p.perpendicularity) || 0
-  const U = getU(p)
-  return T * (-Math.cos(deg2rad(cp.O)) * Math.sin(deg2rad(U)) + Math.sin(deg2rad(cp.O)) * Math.cos(deg2rad(U)))
-}
+const alignmentPairs = computed(() => alignmentResult.value.pairs || [])
+const debugPulleyList = computed(() => alignmentResult.value.per_pulley || [])
+const debugVWList = computed(() => alignmentResult.value.per_pulley || [])
 
 function calcTwistDisplay(p) {
-  const v = calcV(p)
-  return isNaN(v) ? '--' : v.toFixed(4)
+  const item = alignmentResult.value.per_pulley?.find(item => item.code === p.code)
+  if (!item || item.twist == null) return '--'
+  return Number(item.twist).toFixed(4)
 }
 
-function calcFlatOffset(flatPulley, nextGroove) {
-  const cpFlat = contactParams.value[flatPulley.code]
-  const cpNext = contactParams.value[nextGroove.code]
-  if (!cpFlat || !cpNext) return { value: 0, debug: [] }
-  const S_next = Number(nextGroove.centerHeightDiff) || 0
-  const N_flat = cpFlat.N
-  const T_flat = Number(flatPulley.perpendicularity) || 0
-  const U_flat = getU(flatPulley)
-  const P_flat = cpFlat.P
-  const X_flat_rad = T_flat * (-Math.cos(deg2rad(P_flat)) * Math.sin(deg2rad(U_flat)) + Math.sin(deg2rad(P_flat)) * Math.cos(deg2rad(U_flat))) * Math.PI / 180
-  const L_flat = cpFlat.L
-  const V_flat = calcV(flatPulley)
-  const L_next = cpNext.L
-  const W_next = calcW(nextGroove)
-  const result = S_next + N_flat * Math.sin(X_flat_rad) + L_flat / 2 * Math.sin(deg2rad(V_flat)) - L_next / 2 * Math.sin(deg2rad(W_next))
-  return {
-    value: result,
-    debug: [
-      { name: 'S_next', value: S_next, desc: '下一个槽轮的中心高' },
-      { name: 'N_flat', value: N_flat, desc: '平轮的N值（跨段长）' },
-      { name: 'T_flat', value: T_flat, desc: '平轮的垂直度' },
-      { name: 'U_flat', value: U_flat, desc: '平轮的倾斜方向U' },
-      { name: 'P_flat', value: P_flat, desc: '平轮的Entry角P' },
-      { name: 'X_flat_rad', value: X_flat_rad, desc: '平轮X_flat（弧度）= T*(-cos(P)*sin(U)+sin(P)*cos(U))*PI/180' },
-      { name: 'X_flat_deg', value: X_flat_rad * 180 / Math.PI, desc: '平轮X_flat（度）' },
-      { name: 'L_flat', value: L_flat, desc: '平轮的L值' },
-      { name: 'V_flat', value: V_flat, desc: '平轮的V值（Entry侧Camber）' },
-      { name: 'L_next', value: L_next, desc: '下一个槽轮的L值' },
-      { name: 'W_next', value: W_next, desc: '下一个槽轮的W值（Exit侧Camber）' },
-      { name: 'N_flat*sin(X_flat)', value: N_flat * Math.sin(X_flat_rad), desc: '平轮倾斜角偏移量' },
-      { name: 'L_flat/2*sin(V_flat)', value: L_flat / 2 * Math.sin(deg2rad(V_flat)), desc: '平轮Entry侧偏移' },
-      { name: 'L_next/2*sin(W_next)', value: L_next / 2 * Math.sin(deg2rad(W_next)), desc: '下一个槽轮Exit侧偏移' },
-      { name: 'AB(Offset)', value: result, desc: '平轮Offset = S_next + N_flat*sin(X_flat) + L_flat/2*sin(V_flat) - L_next/2*sin(W_next)' }
-    ]
-  }
-}
-
-const alignmentPairs = computed(() => {
+// 监听输入变化，调用后端API计算对齐度
+async function fetchAlignment() {
   const list = sharedStore.pulleys
-  if (list.length < 2) return []
-
-  const grooveIndices = []
-  list.forEach((p, i) => {
-    if (p.type === 'groove') grooveIndices.push(i)
-  })
-  if (grooveIndices.length < 2) return []
-
-  const pairs = []
-  for (let i = 0; i < grooveIndices.length; i++) {
-    const currIdx = grooveIndices[i]
-    const nextIdx = grooveIndices[(i + 1) % grooveIndices.length]
-    const curr = list[currIdx]
-    const next = list[nextIdx]
-
-    const middlePulleys = []
-    let j = (currIdx + 1) % list.length
-    while (j !== nextIdx) {
-      middlePulleys.push({ pulley: list[j], index: j })
-      j = (j + 1) % list.length
-    }
-
-    const cpCurr = contactParams.value[curr.code]
-    const cpNext = contactParams.value[next.code]
-    if (!cpCurr || !cpNext) continue
-
-    if (middlePulleys.length === 0) {
-      const S1 = Number(curr.centerHeightDiff) || 0
-      const S2 = Number(next.centerHeightDiff) || 0
-      const L1 = cpCurr.L, L2 = cpNext.L
-      const V1 = calcV(curr), W2 = calcW(next)
-      const N = cpCurr.N, X = Number(curr.tiltAngle) || 0
-      const K1 = cpCurr.K, K2 = cpNext.K
-
-      const effY1 = S1 - L1 / 2 * Math.sin(deg2rad(V1))
-      const effY2 = S2 - L2 / 2 * Math.sin(deg2rad(W2))
-      const bea = N > 0.001 ? Math.atan((effY2 - effY1) / N) * 180 / Math.PI - X : 0
-      const twist = K1 * V1 - K2 * W2
-
-      const debug = [
-        { name: 'S1', value: S1, desc: '当前槽轮中心高' },
-        { name: 'S2', value: S2, desc: '下一个槽轮中心高' },
-        { name: 'L1', value: L1, desc: '当前槽轮L值' },
-        { name: 'L2', value: L2, desc: '下一个槽轮L值' },
-        { name: 'V1', value: V1, desc: '当前槽轮V值（Entry侧Camber）' },
-        { name: 'W2', value: W2, desc: '下一个槽轮W值（Exit侧Camber）' },
-        { name: 'N', value: N, desc: '跨段长N' },
-        { name: 'X', value: X, desc: '当前槽轮倾斜角' },
-        { name: 'K1', value: K1, desc: '当前槽轮K值' },
-        { name: 'K2', value: K2, desc: '下一个槽轮K值' },
-        { name: 'effY1 = S1 - L1/2*sin(V1)', value: effY1, desc: '当前槽轮有效Y位置' },
-        { name: 'effY2 = S2 - L2/2*sin(W2)', value: effY2, desc: '下一个槽轮有效Y位置' },
-        { name: 'BEA = atan((effY2-effY1)/N)*180/PI - X', value: bea, desc: '切入角BEA' },
-        { name: 'Twist = K1*V1 - K2*W2', value: twist, desc: '扭转角Twist' }
-      ]
-
-      pairs.push({
-        type: 'groove-groove',
-        fromCode: curr.code || '--',
-        toCode: next.code || '--',
-        middleCode: null,
-        bea,
-        twist,
-        offset: null,
-        debug
-      })
-    } else if (middlePulleys.length === 1 && middlePulleys[0].pulley.type === 'flat') {
-      const mid = middlePulleys[0].pulley
-      const cpMid = contactParams.value[mid.code]
-      if (!cpMid) continue
-
-      const offsetResult = calcFlatOffset(mid, next)
-      const AB = offsetResult.value
-      const S1 = Number(curr.centerHeightDiff) || 0
-      const L1 = cpCurr.L, V1 = calcV(curr)
-      const L_mid = cpMid.L, W_mid = calcW(mid)
-      const N = cpCurr.N, X = Number(curr.tiltAngle) || 0
-      const K1 = cpCurr.K, K_mid = cpMid.K
-
-      const effY1 = S1 - L1 / 2 * Math.sin(deg2rad(V1))
-      const effY2 = AB - L_mid / 2 * Math.sin(deg2rad(W_mid))
-      const bea = N > 0.001 ? Math.atan((effY2 - effY1) / N) * 180 / Math.PI - X : 0
-      const twist = K1 * V1 - K_mid * W_mid
-
-      const debug = [
-        { name: 'S1 (curr槽轮中心高)', value: S1, desc: '第一个槽轮（curr）的中心高' },
-        { name: 'L1 (curr槽轮L)', value: L1, desc: '第一个槽轮的L值' },
-        { name: 'V1 (curr槽轮V)', value: V1, desc: '第一个槽轮的V值（Entry侧Camber）' },
-        { name: 'L_mid (平轮L)', value: L_mid, desc: '中间平轮的L值' },
-        { name: 'W_mid (平轮W)', value: W_mid, desc: '中间平轮的W值（Exit侧Camber）' },
-        { name: 'N (curr槽轮N)', value: N, desc: '第一个槽轮的N值（跨段长）' },
-        { name: 'X (curr槽轮倾斜角)', value: X, desc: '第一个槽轮的倾斜角' },
-        { name: 'K1 (curr槽轮K)', value: K1, desc: '第一个槽轮的K值' },
-        { name: 'K_mid (平轮K)', value: K_mid, desc: '中间平轮的K值' },
-        ...offsetResult.debug.map(d => ({ ...d, name: 'Offset_' + d.name })),
-        { name: 'effY1 = S1 - L1/2*sin(V1)', value: effY1, desc: '第一个槽轮侧有效Y位置' },
-        { name: 'effY2 = AB - L_mid/2*sin(W_mid)', value: effY2, desc: '平轮侧有效Y位置' },
-        { name: 'effY2 - effY1', value: effY2 - effY1, desc: '有效Y差值' },
-        { name: 'BEA = atan((effY2-effY1)/N)*180/PI - X', value: bea, desc: '切入角BEA' },
-        { name: 'Twist = K1*V1 - K_mid*W_mid', value: twist, desc: '扭转角Twist' }
-      ]
-
-      pairs.push({
-        type: 'groove-flat-groove',
-        fromCode: curr.code || '--',
-        toCode: next.code || '--',
-        middleCode: mid.code || '--',
-        bea,
-        twist,
-        offset: AB,
-        debug
-      })
-    }
+  const cp = sharedStore.contactParams
+  if (list.length < 2 || Object.keys(cp).length === 0) {
+    alignmentResult.value = { per_pulley: [], pairs: [] }
+    return
   }
-  return pairs
-})
 
-const debugPulleyList = computed(() => {
-  return pulleys.value.map(p => {
-    const cp = contactParams.value[p.code] || {}
-    return {
-      code: p.code,
-      K: cp.K,
-      J: cp.J,
-      L: cp.L,
-      M: cp.M,
-      N: cp.N,
-      P: cp.P,
-      O: cp.O,
-      Q: cp.Q,
-      U: cp.U
+  try {
+    const res = await apiCalcAlignment({
+      pulleys: list.map(p => ({
+        code: p.code,
+        name: p.name || '',
+        type: p.type,
+        centerHeightDiff: Number(p.centerHeightDiff) || 0,
+        perpendicularity: Number(p.perpendicularity) || 0,
+        tiltAngle: p.tiltAngle ?? '',
+      })),
+      contact_params: cp,
+    })
+    if (res.data.success) {
+      alignmentResult.value = res.data
     }
-  })
-})
+  } catch (e) {
+    console.error('对齐度计算失败:', e)
+  }
+}
 
-const debugVWList = computed(() => {
-  return pulleys.value.map(p => {
-    const cp = contactParams.value[p.code] || {}
-    return {
-      code: p.code,
-      type: p.type,
-      S: Number(p.centerHeightDiff) || 0,
-      T: Number(p.perpendicularity) || 0,
-      X: Number(p.tiltAngle) || 0,
-      V: calcV(p),
-      W: calcW(p)
-    }
-  })
-})
+watch(
+  () => [
+    sharedStore.pulleys.map(p => ({ code: p.code, type: p.type, centerHeightDiff: p.centerHeightDiff, perpendicularity: p.perpendicularity, tiltAngle: p.tiltAngle })),
+    sharedStore.contactParams
+  ],
+  () => { fetchAlignment() },
+  { deep: true, immediate: true }
+)
 
 function formatNum(val) {
   if (val === null || val === undefined || isNaN(val) || val === '') return '--'

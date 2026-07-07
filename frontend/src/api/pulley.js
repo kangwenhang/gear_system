@@ -4,7 +4,7 @@ import axios from 'axios'
 // 创建 axios 实例
 const api = axios.create({
   baseURL: '/api',
-  timeout: 5000
+  timeout: 15000
 })
 
 // 获取带轮选项
@@ -22,9 +22,21 @@ export const calcPulleyDiagram = (data) => {
   return api.post('/calculate', data)
 }
 
+// 计算Contact参数
+export const calcContactParams = (data) => {
+  return api.post('/calc-contact-params', data)
+}
+
+// 计算对齐度
+export const calcAlignment = (data) => {
+  return api.post('/calc-alignment', data)
+}
+
 // 集中导出（方便在页面中一次性引入）
 export default {
   getBeltOptions,
   getManufacturerOptions,
-  calcPulleyDiagram
+  calcPulleyDiagram,
+  calcContactParams,
+  calcAlignment
 }
