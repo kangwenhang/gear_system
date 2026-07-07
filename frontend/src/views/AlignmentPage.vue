@@ -35,7 +35,7 @@
               <th>带轮名称</th>
               <th style="width: 160px">中心高 (mm)</th>
               <th style="width: 160px">垂直度 (°)</th>
-              <th style="width: 160px">倾斜角度 (°)</th>
+              <th style="width: 160px">倾斜方向 (°)</th>
               <th style="width: 160px">Twist (°)</th>
             </tr>
           </thead>
@@ -181,7 +181,7 @@
       </div>
 
       <div class="debug-section">
-        <div class="debug-title">每个带轮的V/W值</div>
+        <div class="debug-title">每个带轮的V/W/X/Y值</div>
         <table class="debug-table">
           <thead>
             <tr>
@@ -189,9 +189,10 @@
               <th>类型</th>
               <th>中心高S</th>
               <th>垂直度T</th>
-              <th>倾斜角X</th>
               <th>V</th>
               <th>W</th>
+              <th>X</th>
+              <th>Y</th>
             </tr>
           </thead>
           <tbody>
@@ -200,9 +201,10 @@
               <td>{{ p.type === 'groove' ? '槽轮' : '平轮' }}</td>
               <td>{{ formatNum(p.S) }}</td>
               <td>{{ formatNum(p.T) }}</td>
-              <td>{{ formatNum(p.X) }}</td>
               <td>{{ formatNum(p.V) }}</td>
               <td>{{ formatNum(p.W) }}</td>
+              <td>{{ formatNum(p.X) }}</td>
+              <td>{{ formatNum(p.Y) }}</td>
             </tr>
           </tbody>
         </table>
@@ -274,10 +276,26 @@ function calcV(p) {
   if (!cp) return 0
   const T = Number(p.perpendicularity) || 0
   const U = getU(p)
-  return T * (-Math.cos(deg2rad(cp.P)) * Math.sin(deg2rad(U)) + Math.sin(deg2rad(cp.P)) * Math.cos(deg2rad(U)))
+  return T * (Math.sin(deg2rad(cp.P)) * Math.sin(deg2rad(U)) + Math.cos(deg2rad(cp.P)) * Math.cos(deg2rad(U)))
 }
 
 function calcW(p) {
+  const cp = contactParams.value[p.code]
+  if (!cp) return 0
+  const T = Number(p.perpendicularity) || 0
+  const U = getU(p)
+  return T * (Math.sin(deg2rad(cp.O)) * Math.sin(deg2rad(U)) + Math.cos(deg2rad(cp.O)) * Math.cos(deg2rad(U)))
+}
+
+function calcX(p) {
+  const cp = contactParams.value[p.code]
+  if (!cp) return 0
+  const T = Number(p.perpendicularity) || 0
+  const U = getU(p)
+  return T * (-Math.cos(deg2rad(cp.P)) * Math.sin(deg2rad(U)) + Math.sin(deg2rad(cp.P)) * Math.cos(deg2rad(U)))
+}
+
+function calcY(p) {
   const cp = contactParams.value[p.code]
   if (!cp) return 0
   const T = Number(p.perpendicularity) || 0
@@ -296,10 +314,8 @@ function calcFlatOffset(flatPulley, nextGroove) {
   if (!cpFlat || !cpNext) return { value: 0, debug: [] }
   const S_next = Number(nextGroove.centerHeightDiff) || 0
   const N_flat = cpFlat.N
-  const T_flat = Number(flatPulley.perpendicularity) || 0
-  const U_flat = getU(flatPulley)
-  const P_flat = cpFlat.P
-  const X_flat_rad = T_flat * (-Math.cos(deg2rad(P_flat)) * Math.sin(deg2rad(U_flat)) + Math.sin(deg2rad(P_flat)) * Math.cos(deg2rad(U_flat))) * Math.PI / 180
+  const X_flat = calcX(flatPulley)
+  const X_flat_rad = X_flat * Math.PI / 180
   const L_flat = cpFlat.L
   const V_flat = calcV(flatPulley)
   const L_next = cpNext.L
@@ -310,11 +326,8 @@ function calcFlatOffset(flatPulley, nextGroove) {
     debug: [
       { name: 'S_next', value: S_next, desc: '下一个槽轮的中心高' },
       { name: 'N_flat', value: N_flat, desc: '平轮的N值（跨段长）' },
-      { name: 'T_flat', value: T_flat, desc: '平轮的垂直度' },
-      { name: 'U_flat', value: U_flat, desc: '平轮的倾斜方向U' },
-      { name: 'P_flat', value: P_flat, desc: '平轮的Entry角P' },
-      { name: 'X_flat_rad', value: X_flat_rad, desc: '平轮X_flat（弧度）= T*(-cos(P)*sin(U)+sin(P)*cos(U))*PI/180' },
-      { name: 'X_flat_deg', value: X_flat_rad * 180 / Math.PI, desc: '平轮X_flat（度）' },
+      { name: 'X_flat', value: X_flat, desc: '平轮的X值（Entry侧倾斜）' },
+      { name: 'X_flat_rad', value: X_flat_rad, desc: '平轮X_flat（弧度）' },
       { name: 'L_flat', value: L_flat, desc: '平轮的L值' },
       { name: 'V_flat', value: V_flat, desc: '平轮的V值（Entry侧Camber）' },
       { name: 'L_next', value: L_next, desc: '下一个槽轮的L值' },
@@ -360,7 +373,7 @@ const alignmentPairs = computed(() => {
       const S2 = Number(next.centerHeightDiff) || 0
       const L1 = cpCurr.L, L2 = cpNext.L
       const V1 = calcV(curr), W2 = calcW(next)
-      const N = cpCurr.N, X = Number(curr.tiltAngle) || 0
+      const N = cpCurr.N, X = calcX(curr)
       const K1 = cpCurr.K, K2 = cpNext.K
 
       const effY1 = S1 - L1 / 2 * Math.sin(deg2rad(V1))
@@ -376,7 +389,7 @@ const alignmentPairs = computed(() => {
         { name: 'V1', value: V1, desc: '当前槽轮V值（Entry侧Camber）' },
         { name: 'W2', value: W2, desc: '下一个槽轮W值（Exit侧Camber）' },
         { name: 'N', value: N, desc: '跨段长N' },
-        { name: 'X', value: X, desc: '当前槽轮倾斜角' },
+        { name: 'X (curr槽轮倾斜角)', value: X, desc: '当前槽轮X列值（倾斜角）' },
         { name: 'K1', value: K1, desc: '当前槽轮K值' },
         { name: 'K2', value: K2, desc: '下一个槽轮K值' },
         { name: 'effY1 = S1 - L1/2*sin(V1)', value: effY1, desc: '当前槽轮有效Y位置' },
@@ -405,7 +418,7 @@ const alignmentPairs = computed(() => {
       const S1 = Number(curr.centerHeightDiff) || 0
       const L1 = cpCurr.L, V1 = calcV(curr)
       const L_mid = cpMid.L, W_mid = calcW(mid)
-      const N = cpCurr.N, X = Number(curr.tiltAngle) || 0
+      const N = cpCurr.N, X = calcX(curr)
       const K1 = cpCurr.K, K_mid = cpMid.K
 
       const effY1 = S1 - L1 / 2 * Math.sin(deg2rad(V1))
@@ -420,7 +433,7 @@ const alignmentPairs = computed(() => {
         { name: 'L_mid (平轮L)', value: L_mid, desc: '中间平轮的L值' },
         { name: 'W_mid (平轮W)', value: W_mid, desc: '中间平轮的W值（Exit侧Camber）' },
         { name: 'N (curr槽轮N)', value: N, desc: '第一个槽轮的N值（跨段长）' },
-        { name: 'X (curr槽轮倾斜角)', value: X, desc: '第一个槽轮的倾斜角' },
+        { name: 'X (curr槽轮倾斜角)', value: X, desc: '第一个槽轮X列值（倾斜角）' },
         { name: 'K1 (curr槽轮K)', value: K1, desc: '第一个槽轮的K值' },
         { name: 'K_mid (平轮K)', value: K_mid, desc: '中间平轮的K值' },
         ...offsetResult.debug.map(d => ({ ...d, name: 'Offset_' + d.name })),
@@ -472,9 +485,10 @@ const debugVWList = computed(() => {
       type: p.type,
       S: Number(p.centerHeightDiff) || 0,
       T: Number(p.perpendicularity) || 0,
-      X: Number(p.tiltAngle) || 0,
       V: calcV(p),
-      W: calcW(p)
+      W: calcW(p),
+      X: calcX(p),
+      Y: calcY(p)
     }
   })
 })
