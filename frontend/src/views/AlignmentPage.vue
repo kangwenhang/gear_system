@@ -304,8 +304,26 @@ function calcY(p) {
 }
 
 function calcTwistDisplay(p) {
-  const v = calcV(p)
-  return isNaN(v) ? '--' : v.toFixed(4)
+  const cp = contactParams.value[p.code]
+  if (!cp) return '--'
+
+  const V_i = calcV(p)
+  const K_i = cp.K
+
+  // 找下一个轮子（环形轮系，最后一个轮子的下一个是第一个轮子）
+  const idx = pulleys.value.findIndex(item => item.code === p.code)
+  if (idx === -1) return '--'
+
+  const nextIdx = (idx + 1) % pulleys.value.length
+  const nextPulley = pulleys.value[nextIdx]
+  const cpNext = contactParams.value[nextPulley.code]
+  if (!cpNext) return '--'
+
+  const W_next = calcW(nextPulley)
+  const K_next = cpNext.K
+
+  const twist = V_i * K_i - W_next * K_next
+  return isNaN(twist) ? '--' : twist.toFixed(4)
 }
 
 function calcFlatOffset(flatPulley, nextGroove) {
