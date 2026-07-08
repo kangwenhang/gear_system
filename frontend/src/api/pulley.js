@@ -32,11 +32,18 @@ export const calcAlignment = (data) => {
   return api.post('/calc-alignment', data)
 }
 
+// 张紧轮/枢轴坐标互转
+// 传 pivot_x/pivot_y 做正向（→张紧轮XY），传 pulley_x/pulley_y 做反向（→枢轴XY）
+export const calcTensionerCoord = (data) => {
+  return api.post('/calc-tensioner-coord', data)
+}
+
 // 集中导出（方便在页面中一次性引入）
 export default {
   getBeltOptions,
   getManufacturerOptions,
   calcPulleyDiagram,
   calcContactParams,
-  calcAlignment
+  calcAlignment,
+  calcTensionerCoord
 }

@@ -30,6 +30,16 @@ class AlignmentRequest(BaseModel):
     contact_params: Dict[str, Dict[str, float]]  # {code: {K, J, L, M, N, P, O, Q, U}}
 
 
+class TensionerCalcRequest(BaseModel):
+    """张紧轮/枢轴坐标互转请求"""
+    pivot_x: Optional[float] = None
+    pivot_y: Optional[float] = None
+    pulley_x: Optional[float] = None
+    pulley_y: Optional[float] = None
+    arm_length: float = 0
+    work_angle: float = 0  # 度
+
+
 def deg2rad(deg):
     return deg * math.pi / 180.0
 
@@ -438,5 +448,41 @@ def api_calc_alignment(req: AlignmentRequest):
             "per_pulley": per_pulley,
             "pairs": pairs
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calc-tensioner-coord")
+def api_calc_tensioner_coord(req: TensionerCalcRequest):
+    """
+    张紧轮坐标和枢轴坐标互转
+    - 正向：枢轴XY + 臂长 + 角度 → 张紧轮XY
+    - 反向：张紧轮XY + 臂长 + 角度 → 枢轴XY
+    """
+    try:
+        angle_rad = deg2rad(req.work_angle)
+        arm = req.arm_length
+        result = {}
+
+        # 正向计算：枢轴 → 张紧轮
+        if req.pivot_x is not None and req.pivot_y is not None:
+            pulley_x = req.pivot_x + arm * math.cos(angle_rad)
+            pulley_y = req.pivot_y + arm * math.sin(angle_rad)
+            result['pulley_x'] = round(pulley_x, 4)
+            result['pulley_y'] = round(pulley_y, 4)
+
+        # 反向计算：张紧轮 → 枢轴
+        if req.pulley_x is not None and req.pulley_y is not None:
+            pivot_x = req.pulley_x - arm * math.cos(angle_rad)
+            pivot_y = req.pulley_y - arm * math.sin(angle_rad)
+            result['pivot_x'] = round(pivot_x, 4)
+            result['pivot_y'] = round(pivot_y, 4)
+
+        if not result:
+            raise HTTPException(status_code=400, detail="必须提供 pivot_x/pivot_y 或 pulley_x/pulley_y 之一")
+
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
