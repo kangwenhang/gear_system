@@ -963,6 +963,9 @@ const tableData = ref(
     : [createRow(), createRow()]
 )
 
+// 初始化时检查张紧轮XY状态
+checkTensionerXY()
+
 // 监听表格数据变化，自动推导旋转方向（仅在自动张紧轮模式下）
 watch(
   () => tableData.value.map(p => ({ x: p.x, y: p.y, flat_dia: p.flat_dia, groove_dia: p.groove_dia, type: p.type })),
