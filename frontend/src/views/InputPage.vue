@@ -750,46 +750,6 @@ const tensioner = ref({
 // 计算模式：1=枢轴+臂长+角度→张紧轮XY  2=张紧轮+臂长+角度→枢轴XY  3=枢轴+张紧轮→臂长+角度
 const calcMode = ref('1')
 
-// 判断张紧轮是否已有XY值
-const hasTensionerXY = computed(() => {
-  if (tableData.value.length === 0) return false
-  const lastRow = tableData.value[tableData.value.length - 1]
-  return !!(lastRow && lastRow.x != null && lastRow.y != null)
-})
-
-// 判断枢轴是否已有XY值
-const hasPivotXY = computed(() => {
-  return tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
-})
-
-// 判断臂长和角度是否都有值
-const hasArmAngle = computed(() => {
-  return tensioner.value.automatic.arm_length != null && tensioner.value.automatic.work_angle != null
-})
-
-// 模式1是否禁用：当张紧轮已有XY值时禁用
-const disableMode1 = computed(() => hasTensionerXY.value)
-
-// 模式2是否禁用：当枢轴已有XY值时禁用
-const disableMode2 = computed(() => hasPivotXY.value)
-
-// 模式3是否禁用：当臂长和角度都已有值时禁用
-const disableMode3 = computed(() => hasArmAngle.value)
-
-// 当当前模式被禁用时，自动切换到第一个可用模式
-watch([disableMode1, disableMode2, disableMode3], () => {
-  if (calcMode.value === '1' && disableMode1.value) {
-    if (!disableMode3.value) calcMode.value = '3'
-    else if (!disableMode2.value) calcMode.value = '2'
-  } else if (calcMode.value === '2' && disableMode2.value) {
-    if (!disableMode3.value) calcMode.value = '3'
-    else if (!disableMode1.value) calcMode.value = '1'
-  } else if (calcMode.value === '3' && disableMode3.value) {
-    if (!disableMode1.value) calcMode.value = '1'
-    else if (!disableMode2.value) calcMode.value = '2'
-  }
-})
-
 // 标记是否正在进行自动计算，用于阻止watch循环触发
 const isAutoCalculating = ref(false)
 
@@ -1019,6 +979,46 @@ const tableData = ref(
       }))
     : [createRow(), createRow()]
 )
+
+// 判断张紧轮是否已有XY值
+const hasTensionerXY = computed(() => {
+  if (tableData.value.length === 0) return false
+  const lastRow = tableData.value[tableData.value.length - 1]
+  return !!(lastRow && lastRow.x != null && lastRow.y != null)
+})
+
+// 判断枢轴是否已有XY值
+const hasPivotXY = computed(() => {
+  return tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
+})
+
+// 判断臂长和角度是否都有值
+const hasArmAngle = computed(() => {
+  return tensioner.value.automatic.arm_length != null && tensioner.value.automatic.work_angle != null
+})
+
+// 模式1是否禁用：当张紧轮已有XY值时禁用
+const disableMode1 = computed(() => hasTensionerXY.value)
+
+// 模式2是否禁用：当枢轴已有XY值时禁用
+const disableMode2 = computed(() => hasPivotXY.value)
+
+// 模式3是否禁用：当臂长和角度都已有值时禁用
+const disableMode3 = computed(() => hasArmAngle.value)
+
+// 当当前模式被禁用时，自动切换到第一个可用模式
+watch([disableMode1, disableMode2, disableMode3], () => {
+  if (calcMode.value === '1' && disableMode1.value) {
+    if (!disableMode3.value) calcMode.value = '3'
+    else if (!disableMode2.value) calcMode.value = '2'
+  } else if (calcMode.value === '2' && disableMode2.value) {
+    if (!disableMode3.value) calcMode.value = '3'
+    else if (!disableMode1.value) calcMode.value = '1'
+  } else if (calcMode.value === '3' && disableMode3.value) {
+    if (!disableMode1.value) calcMode.value = '1'
+    else if (!disableMode2.value) calcMode.value = '2'
+  }
+})
 
 // 监听表格数据变化，自动推导旋转方向（仅在自动张紧轮模式下）
 watch(
