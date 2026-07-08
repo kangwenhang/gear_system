@@ -36,8 +36,8 @@ class TensionerCalcRequest(BaseModel):
     pivot_y: Optional[float] = None
     pulley_x: Optional[float] = None
     pulley_y: Optional[float] = None
-    arm_length: float = 0
-    work_angle: float = 0  # 度
+    arm_length: Optional[float] = None
+    work_angle: Optional[float] = None  # 度
 
 
 def deg2rad(deg):
@@ -455,31 +455,46 @@ def api_calc_alignment(req: AlignmentRequest):
 @router.post("/calc-tensioner-coord")
 def api_calc_tensioner_coord(req: TensionerCalcRequest):
     """
-    张紧轮坐标和枢轴坐标互转
+    张紧轮坐标和枢轴坐标互转，支持三种计算方向：
     - 正向：枢轴XY + 臂长 + 角度 → 张紧轮XY
     - 反向：张紧轮XY + 臂长 + 角度 → 枢轴XY
+    - 双向：枢轴XY + 张紧轮XY → 臂长 + 角度
     """
     try:
-        angle_rad = deg2rad(req.work_angle)
-        arm = req.arm_length
         result = {}
 
-        # 正向计算：枢轴 → 张紧轮
-        if req.pivot_x is not None and req.pivot_y is not None:
+        # 计算方向1：双向反推（枢轴XY + 张紧轮XY → 臂长 + 角度）
+        if req.pivot_x is not None and req.pivot_y is not None and \
+           req.pulley_x is not None and req.pulley_y is not None:
+            dx = req.pulley_x - req.pivot_x
+            dy = req.pulley_y - req.pivot_y
+            arm_length = math.sqrt(dx * dx + dy * dy)
+            work_angle = math.degrees(math.atan2(dy, dx))
+            result['arm_length'] = round(arm_length, 4)
+            result['work_angle'] = round(work_angle, 4)
+
+        # 计算方向2：正向（枢轴 → 张紧轮）
+        if req.pivot_x is not None and req.pivot_y is not None and \
+           req.arm_length is not None and req.work_angle is not None:
+            angle_rad = math.radians(req.work_angle)
+            arm = req.arm_length
             pulley_x = req.pivot_x + arm * math.cos(angle_rad)
             pulley_y = req.pivot_y + arm * math.sin(angle_rad)
             result['pulley_x'] = round(pulley_x, 4)
             result['pulley_y'] = round(pulley_y, 4)
 
-        # 反向计算：张紧轮 → 枢轴
-        if req.pulley_x is not None and req.pulley_y is not None:
+        # 计算方向3：反向（张紧轮 → 枢轴）
+        if req.pulley_x is not None and req.pulley_y is not None and \
+           req.arm_length is not None and req.work_angle is not None:
+            angle_rad = math.radians(req.work_angle)
+            arm = req.arm_length
             pivot_x = req.pulley_x - arm * math.cos(angle_rad)
             pivot_y = req.pulley_y - arm * math.sin(angle_rad)
             result['pivot_x'] = round(pivot_x, 4)
             result['pivot_y'] = round(pivot_y, 4)
 
         if not result:
-            raise HTTPException(status_code=400, detail="必须提供 pivot_x/pivot_y 或 pulley_x/pulley_y 之一")
+            raise HTTPException(status_code=400, detail="参数不足：请提供 (枢轴XY+臂长+角度) 或 (张紧轮XY+臂长+角度) 或 (枢轴XY+张紧轮XY)")
 
         return result
     except HTTPException:
