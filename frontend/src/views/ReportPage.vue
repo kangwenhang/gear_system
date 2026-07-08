@@ -21,10 +21,12 @@
             {{ currentLangLabel }}
             <i class="el-icon-arrow-down" style="margin-left:4px"></i>
           </el-button>
-          <el-dropdown-menu slot="dropdown">
-            <el-dropdown-item command="zh-CN" :disabled="currentLang === 'zh-CN'">中文</el-dropdown-item>
-            <el-dropdown-item command="en-US" :disabled="currentLang === 'en-US'">English</el-dropdown-item>
-          </el-dropdown-menu>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="zh-CN" :disabled="currentLang === 'zh-CN'">中文</el-dropdown-item>
+              <el-dropdown-item command="en-US" :disabled="currentLang === 'en-US'">English</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
         </el-dropdown>
         <el-button type="primary" @click="handlePrint" style="margin-left:8px">
           <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
