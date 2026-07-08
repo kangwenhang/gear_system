@@ -4,11 +4,11 @@
       <div class="toolbar-left">
         <el-button @click="handleBack">
           <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-          {{ t('toolbar.back') }}
+          返回编辑
         </el-button>
       </div>
       <div class="toolbar-center">
-        <span class="page-indicator">{{ t('toolbar.title') }} · {{ t('toolbar.pages', totalPages) }}</span>
+        <span class="page-indicator">FEAD 性能分析报告 · 共 {{ totalPages }} 页</span>
       </div>
       <div class="toolbar-right">
         <el-dropdown @command="handleLangChange" trigger="click" class="lang-dropdown">
@@ -34,7 +34,7 @@
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
             <rect x="6" y="14" width="12" height="8"/>
           </svg>
-          {{ t('toolbar.print') }}
+          打印报告
         </el-button>
       </div>
     </div>
