@@ -444,7 +444,7 @@
             <el-row :gutter="16">
               <el-col :span="4">
                 <el-form-item label="枢轴 X">
-                  <el-input-number v-model="tensioner.automatic.pivot_x" :precision="2" :controls="false" style="width:100%" placeholder="--" :disabled="disablePivotXY" />
+                  <el-input-number v-model="tensioner.automatic.pivot_x" :precision="2" :controls="false" style="width:100%" placeholder="--" :disabled="disablePivotXY" @change="onPivotXYChange" />
                 </el-form-item>
               </el-col>
               <el-col :span="4">
@@ -740,16 +740,20 @@ const hasPivotXY = ref(false)
 const hasArmAngle = ref(false)
 // 标记表格XY是否由自动计算填入（而非用户手动输入）
 const isAutoCalculatedXY = ref(false)
+// 标记枢轴XY是否由自动计算填入
+const isAutoCalculatedPivot = ref(false)
 // 标记是否正在进行反向计算（张紧轮XY → 枢轴XY），用于阻止循环触发
 const isReversing = ref(false)
 
-// 计算禁用状态 - 只有用户同时手动输入了枢轴XY和张紧轮XY时才互斥
+// 计算禁用状态
 const disablePivotXY = computed(() => {
-  return hasPivotXY.value && hasTensionerXY.value && !isAutoCalculatedXY.value
+  // 如果枢轴XY是自动计算的，禁用输入（防止用户手动修改）
+  return isAutoCalculatedPivot.value
 })
 
 const disableArmAngle = computed(() => {
-  return hasPivotXY.value && hasTensionerXY.value && !isAutoCalculatedXY.value
+  // 只有当用户同时手动输入了枢轴XY和张紧轮XY时才禁用臂长和角度
+  return hasPivotXY.value && hasTensionerXY.value && !isAutoCalculatedXY.value && !isAutoCalculatedPivot.value
 })
 
 // 手调张紧轮：判断是否为垂直线（起始X == 结束X）
@@ -1072,12 +1076,30 @@ function onTableXYChange(idx) {
   }
 }
 
-// 监听臂长和角度变化，但不触发自动计算
+// 用户手动修改枢轴XY时，清除自动计算标志
+function onPivotXYChange() {
+  isAutoCalculatedPivot.value = false
+}
+
+// 监听臂长和角度变化
 watch([() => tensioner.value.automatic.arm_length, () => tensioner.value.automatic.work_angle], 
 () => {
-  // 只有当有用户手动输入时才计算
-  if (tensioner.value.automatic.arm_length != null && tensioner.value.automatic.work_angle != null) {
+  const armLength = tensioner.value.automatic.arm_length
+  const workAngle = tensioner.value.automatic.work_angle
+  
+  if (armLength == null || workAngle == null) return
+  
+  const hasPivot = tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
+  const lastRow = tableData.value.length > 0 ? tableData.value[tableData.value.length - 1] : null
+  const hasTensioner = lastRow && lastRow.x != null && lastRow.y != null
+  
+  // 如果有枢轴XY，执行正向计算（枢轴 → 张紧轮）
+  if (hasPivot) {
     calculateTensionerXY()
+  }
+  // 如果没有枢轴XY但有张紧轮XY，执行反向计算（张紧轮 → 枢轴）
+  else if (!hasPivot && hasTensioner) {
+    calculatePivotXY()
   }
 }, { deep: true })
 
@@ -1194,8 +1216,9 @@ async function calculateTensionerXY() {
     const lastRow = tableData.value[tableData.value.length - 1]
     if (!lastRow) return
 
-    // 标记为自动计算，避免触发互斥逻辑
+    // 标记表格XY是自动计算的，清除枢轴的自动计算标志
     isAutoCalculatedXY.value = true
+    isAutoCalculatedPivot.value = false
 
     // 更新表格数据
     lastRow.x = Number(Number(data.pulley_x).toFixed(2))
@@ -1233,6 +1256,9 @@ async function calculatePivotXY() {
 
     // 设置反向计算标志，阻止枢轴XY的watch触发正向计算
     isReversing.value = true
+
+    // 标记枢轴XY是自动计算的
+    isAutoCalculatedPivot.value = true
 
     // 更新枢轴XY
     tensioner.value.automatic.pivot_x = Number(Number(data.pivot_x).toFixed(2))
