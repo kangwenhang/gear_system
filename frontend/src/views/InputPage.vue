@@ -162,7 +162,7 @@
                       size="small"
                       style="width: 100%"
                       placeholder="--"
-                      @change="onTableXYChange"
+                      @change="onTableXYChange(scope.$index)"
                     />
                   </template>
                 </el-table-column>
@@ -175,7 +175,7 @@
                       size="small"
                       style="width: 100%"
                       placeholder="--"
-                      @change="onTableXYChange"
+                      @change="onTableXYChange(scope.$index)"
                     />
                   </template>
                 </el-table-column>
@@ -680,6 +680,7 @@ import PulleyDiagram from '@/components/PulleyDiagram.vue'
 
 import api from '../api/pulley.js'
 import { calcContactParams as apiCalcContactParams } from '../api/pulley.js'
+import { calcTensionerCoord as apiCalcTensionerCoord } from '../api/pulley.js'
 import { sharedStore } from '../store/shared.js'
 
 const formInfo = ref({
@@ -1044,9 +1045,20 @@ function checkTensionerXY() {
 }
 
 // 用户手动修改表格XY时，清除自动计算标志，恢复互斥逻辑
-function onTableXYChange() {
+function onTableXYChange(idx) {
   isAutoCalculatedXY.value = false
   checkTensionerXY()
+
+  // 如果修改的是表格最后一行（张紧轮）的XY，触发反向计算枢轴
+  if (tableData.value.length > 0 && idx === tableData.value.length - 1) {
+    if (tableData.value[idx].x != null && tableData.value[idx].y != null) {
+      const armLength = tensioner.value.automatic.arm_length
+      const workAngle = tensioner.value.automatic.work_angle
+      if (armLength != null && workAngle != null) {
+        calculatePivotXY()
+      }
+    }
+  }
 }
 
 // 监听臂长和角度变化，但不触发自动计算
@@ -1142,39 +1154,81 @@ watch(
   { deep: true }
 )
 
-// 计算张紧轮坐标
-function calculateTensionerXY() {
+// 正向计算：枢轴XY + 臂长 + 角度 → 张紧轮XY（调用后端）
+async function calculateTensionerXY() {
   // 确保表格中有数据
   if (tableData.value.length === 0) return
-  
+
   const pivotX = tensioner.value.automatic.pivot_x
   const pivotY = tensioner.value.automatic.pivot_y
   const armLength = tensioner.value.automatic.arm_length
   const workAngle = tensioner.value.automatic.work_angle
-  
+
   // 确保所有参数都有值
   if (pivotX == null || pivotY == null || armLength == null || workAngle == null) return
-  
-  // 角度转换为弧度（三角函数使用弧度）
-  const angleRad = workAngle * Math.PI / 180
-  
-  // 计算皮带轮坐标
-  const pulleyX = pivotX + armLength * Math.cos(angleRad)
-  const pulleyY = pivotY + armLength * Math.sin(angleRad)
-  
+
+  try {
+    const res = await apiCalcTensionerCoord({
+      pivot_x: Number(pivotX),
+      pivot_y: Number(pivotY),
+      arm_length: Number(armLength),
+      work_angle: Number(workAngle)
+    })
+    const data = res.data || {}
+    if (data.pulley_x == null || data.pulley_y == null) return
+
+    // 获取表格最后一行（张紧轮）
+    const lastRow = tableData.value[tableData.value.length - 1]
+    if (!lastRow) return
+
+    // 标记为自动计算，避免触发互斥逻辑
+    isAutoCalculatedXY.value = true
+
+    // 更新表格数据
+    lastRow.x = Number(Number(data.pulley_x).toFixed(2))
+    lastRow.y = Number(Number(data.pulley_y).toFixed(2))
+
+    // 触发检测
+    checkTensionerXY()
+  } catch (e) {
+    console.error('张紧轮坐标计算失败:', e)
+  }
+}
+
+// 反向计算：张紧轮XY + 臂长 + 角度 → 枢轴XY（调用后端）
+async function calculatePivotXY() {
+  if (tableData.value.length === 0) return
+
   // 获取表格最后一行（张紧轮）
   const lastRow = tableData.value[tableData.value.length - 1]
-  if (!lastRow) return
-  
-  // 标记为自动计算，避免触发互斥逻辑
-  isAutoCalculatedXY.value = true
-  
-  // 更新表格数据
-  lastRow.x = Number(pulleyX.toFixed(2))
-  lastRow.y = Number(pulleyY.toFixed(2))
-  
-  // 触发检测
-  checkTensionerXY()
+  if (!lastRow || lastRow.x == null || lastRow.y == null) return
+
+  const armLength = tensioner.value.automatic.arm_length
+  const workAngle = tensioner.value.automatic.work_angle
+
+  if (armLength == null || workAngle == null) return
+
+  try {
+    const res = await apiCalcTensionerCoord({
+      pulley_x: Number(lastRow.x),
+      pulley_y: Number(lastRow.y),
+      arm_length: Number(armLength),
+      work_angle: Number(workAngle)
+    })
+    const data = res.data || {}
+    if (data.pivot_x == null || data.pivot_y == null) return
+
+    // 标记为自动计算，避免触发互斥逻辑
+    isAutoCalculatedXY.value = true
+
+    tensioner.value.automatic.pivot_x = Number(Number(data.pivot_x).toFixed(2))
+    tensioner.value.automatic.pivot_y = Number(Number(data.pivot_y).toFixed(2))
+
+    // 触发检测
+    checkTensionerXY()
+  } catch (e) {
+    console.error('枢轴坐标计算失败:', e)
+  }
 }
 
 function createRow() {
