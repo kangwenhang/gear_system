@@ -162,6 +162,7 @@
                       size="small"
                       style="width: 100%"
                       placeholder="--"
+                      :disabled="scope.$index === tableData.length - 1 && tensioner.type === 'automatic' && disableTensionerXY"
                       @change="onTableXYChange(scope.$index)"
                     />
                   </template>
@@ -175,6 +176,7 @@
                       size="small"
                       style="width: 100%"
                       placeholder="--"
+                      :disabled="scope.$index === tableData.length - 1 && tensioner.type === 'automatic' && disableTensionerXY"
                       @change="onTableXYChange(scope.$index)"
                     />
                   </template>
@@ -441,6 +443,17 @@
               <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
               枢轴与臂参数
             </div>
+            <el-row :gutter="16" style="margin-bottom: 8px">
+              <el-col :span="12">
+                <el-form-item label="计算模式">
+                  <el-radio-group v-model="calcMode" size="small">
+                    <el-radio-button value="1">枢轴+臂长+角度 → 张紧轮</el-radio-button>
+                    <el-radio-button value="2">张紧轮+臂长+角度 → 枢轴</el-radio-button>
+                    <el-radio-button value="3">枢轴+张紧轮 → 臂长+角度</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </el-col>
+            </el-row>
             <el-row :gutter="16">
               <el-col :span="4">
                 <el-form-item label="枢轴 X">
@@ -454,12 +467,12 @@
               </el-col>
               <el-col :span="4">
                 <el-form-item label="臂长(mm)">
-                  <el-input-number v-model="tensioner.automatic.arm_length" :precision="2" :controls="false" style="width:100%" placeholder="--" :disabled="disableArmAngle" />
+                  <el-input-number v-model="tensioner.automatic.arm_length" :precision="2" :controls="false" style="width:100%" placeholder="--" :disabled="disableArmAngle" @change="onArmAngleChange" />
                 </el-form-item>
               </el-col>
               <el-col :span="4">
                 <el-form-item label="工作角度(°)">
-                  <el-input-number v-model="tensioner.automatic.work_angle" :precision="2" :controls="false" style="width:100%" placeholder="--" :disabled="disableArmAngle" :min="0" :max="360" />
+                  <el-input-number v-model="tensioner.automatic.work_angle" :precision="2" :controls="false" style="width:100%" placeholder="--" :disabled="disableArmAngle" :min="0" :max="360" @change="onArmAngleChange" />
                 </el-form-item>
               </el-col>
               <el-col :span="4">
@@ -734,30 +747,26 @@ const tensioner = ref({
   }
 })
 
-// 带轮参数中张紧轮是否已输入XY坐标
-const hasTensionerXY = ref(false)
-const hasPivotXY = ref(false)
-const hasArmAngle = ref(false)
-// 标记表格XY是否由自动计算填入（而非用户手动输入）
-const isAutoCalculatedXY = ref(false)
-// 标记枢轴XY是否由自动计算填入
-const isAutoCalculatedPivot = ref(false)
-// 标记臂长和角度是否由自动计算填入
-const isAutoCalculatedArmAngle = ref(false)
-// 标记是否正在进行反向计算（张紧轮XY → 枢轴XY），用于阻止循环触发
-const isReversing = ref(false)
-// 标记是否正在进行双向反推（枢轴XY + 张紧轮XY → 臂长 + 角度），用于阻止正向计算
-const isCalculatingArmAngle = ref(false)
+// 计算模式：1=枢轴+臂长+角度→张紧轮XY  2=张紧轮+臂长+角度→枢轴XY  3=枢轴+张紧轮→臂长+角度
+const calcMode = ref('1')
 
-// 计算禁用状态
+// 标记是否正在进行自动计算，用于阻止watch循环触发
+const isAutoCalculating = ref(false)
+
+// 计算禁用状态：根据计算模式决定哪些输入框禁用
 const disablePivotXY = computed(() => {
-  // 如果枢轴XY是自动计算的，禁用输入（防止用户手动修改）
-  return isAutoCalculatedPivot.value
+  // 模式2：枢轴XY是计算结果，禁用输入
+  return calcMode.value === '2'
 })
 
 const disableArmAngle = computed(() => {
-  // 如果臂长角度是自动计算的，禁用输入
-  return isAutoCalculatedArmAngle.value
+  // 模式3：臂长+角度是计算结果，禁用输入
+  return calcMode.value === '3'
+})
+
+const disableTensionerXY = computed(() => {
+  // 模式1：张紧轮XY是计算结果，禁用输入
+  return calcMode.value === '1'
 })
 
 // 手调张紧轮：判断是否为垂直线（起始X == 结束X）
@@ -971,15 +980,6 @@ const tableData = ref(
     : [createRow(), createRow()]
 )
 
-// 初始化时检查张紧轮XY状态
-checkTensionerXY()
-
-// 如果表格数据是从sharedStore加载的，标记为自动计算状态
-// 这样用户输入臂长和工作角度时可以正常触发正向计算
-if (sharedStore.pulleys.length > 0) {
-  isAutoCalculatedXY.value = true
-}
-
 // 监听表格数据变化，自动推导旋转方向（仅在自动张紧轮模式下）
 watch(
   () => tableData.value.map(p => ({ x: p.x, y: p.y, flat_dia: p.flat_dia, groove_dia: p.groove_dia, type: p.type })),
@@ -1057,108 +1057,67 @@ watch(
   { deep: true, immediate: true }
 )
 
-// 监听表格数据变化，检测张紧轮XY
-function checkTensionerXY() {
-  const lastRow = tableData.value[tableData.value.length - 1]
-  hasTensionerXY.value = !!(lastRow && lastRow.x != null && lastRow.y != null)
-}
-
-// 用户手动修改表格XY时，清除自动计算标志，恢复互斥逻辑
+// 用户修改表格XY时，根据计算模式触发计算
 function onTableXYChange(idx) {
-  isAutoCalculatedXY.value = false
-  checkTensionerXY()
-
-  // 如果修改的是表格最后一行（张紧轮）的XY
+  if (isAutoCalculating.value) return
   if (tableData.value.length > 0 && idx === tableData.value.length - 1) {
     if (tableData.value[idx].x != null && tableData.value[idx].y != null) {
-      const armLength = tensioner.value.automatic.arm_length
-      const workAngle = tensioner.value.automatic.work_angle
-      const hasPivot = tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
-
-      // 如果有臂长和角度，执行反向计算（张紧轮 → 枢轴）
-      if (armLength != null && workAngle != null) {
-        calculatePivotXY()
-      }
-      // 如果有枢轴XY但没有臂长角度，执行双向反推（张紧轮+枢轴 → 臂长+角度）
-      else if (hasPivot && (armLength == null || workAngle == null)) {
-        calculateArmAngle()
-      }
+      triggerCalc()
     }
   }
 }
 
-// 用户手动修改枢轴XY时，清除自动计算标志
+// 用户修改枢轴XY时，根据计算模式触发计算
 function onPivotXYChange() {
-  isAutoCalculatedPivot.value = false
-
-  // 如果同时有张紧轮XY，触发双向反推计算臂长和角度
-  const lastRow = tableData.value.length > 0 ? tableData.value[tableData.value.length - 1] : null
-  const hasTensioner = lastRow && lastRow.x != null && lastRow.y != null
-  const hasPivot = tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
-  
-  if (hasPivot && hasTensioner) {
-    isCalculatingArmAngle.value = true
-    calculateArmAngle().finally(() => {
-      isCalculatingArmAngle.value = false
-    })
+  if (isAutoCalculating.value) return
+  if (tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null) {
+    triggerCalc()
   }
 }
 
-// 监听臂长和角度变化
-watch([() => tensioner.value.automatic.arm_length, () => tensioner.value.automatic.work_angle], 
-() => {
-  const armLength = tensioner.value.automatic.arm_length
-  const workAngle = tensioner.value.automatic.work_angle
-  
-  // 如果正在进行双向反推，跳过计算（臂长角度是自动计算的结果）
-  if (isCalculatingArmAngle.value) {
-    return
+// 用户修改臂长或角度时，根据计算模式触发计算
+function onArmAngleChange() {
+  if (isAutoCalculating.value) return
+  if (tensioner.value.automatic.arm_length != null && tensioner.value.automatic.work_angle != null) {
+    triggerCalc()
   }
-  
-  // 用户手动修改臂长角度时，清除自动计算标志
-  isAutoCalculatedArmAngle.value = false
-  
-  if (armLength == null || workAngle == null) return
-  
+}
+
+// 根据计算模式触发对应的计算
+async function triggerCalc() {
+  if (isAutoCalculating.value) return
+
+  const mode = calcMode.value
   const hasPivot = tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
   const lastRow = tableData.value.length > 0 ? tableData.value[tableData.value.length - 1] : null
   const hasTensioner = lastRow && lastRow.x != null && lastRow.y != null
-  
-  // 如果有枢轴XY，执行正向计算（枢轴 → 张紧轮）
-  if (hasPivot) {
-    calculateTensionerXY()
-  }
-  // 如果没有枢轴XY但有张紧轮XY，执行反向计算（张紧轮 → 枢轴）
-  else if (!hasPivot && hasTensioner) {
-    calculatePivotXY()
-  }
-}, { deep: true })
+  const hasArmAngleVal = tensioner.value.automatic.arm_length != null && tensioner.value.automatic.work_angle != null
 
-// 监听枢轴XY
-watchEffect(() => {
-  hasPivotXY.value = tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
-})
+  isAutoCalculating.value = true
 
-// 监听枢轴XY变化
-watch([() => tensioner.value.automatic.pivot_x, () => tensioner.value.automatic.pivot_y], 
-() => {
-  // 如果正在反向计算（由张紧轮XY触发的），跳过正向计算，避免循环
-  if (isReversing.value) return
-  // 如果正在进行双向反推，跳过正向计算，避免覆盖张紧轮XY
-  if (isCalculatingArmAngle.value) return
-  
-  if (tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null) {
-    // 如果臂长和角度也都有值，则计算
-    if (tensioner.value.automatic.arm_length != null && tensioner.value.automatic.work_angle != null) {
-      calculateTensionerXY()
+  try {
+    if (mode === '1') {
+      // 枢轴+臂长+角度 → 张紧轮XY
+      if (hasPivot && hasArmAngleVal) {
+        await calculateTensionerXY()
+      }
+    } else if (mode === '2') {
+      // 张紧轮+臂长+角度 → 枢轴XY
+      if (hasTensioner && hasArmAngleVal) {
+        await calculatePivotXY()
+      }
+    } else if (mode === '3') {
+      // 枢轴+张紧轮 → 臂长+角度
+      if (hasPivot && hasTensioner) {
+        await calculateArmAngle()
+      }
     }
+  } finally {
+    setTimeout(() => {
+      isAutoCalculating.value = false
+    }, 50)
   }
-})
-
-// 监听臂长+工作角度
-watchEffect(() => {
-  hasArmAngle.value = tensioner.value.automatic.arm_length != null && tensioner.value.automatic.work_angle != null
-})
+}
 
 // 手调张紧轮：根据起始点和结束点直线方程，由名义位置X计算Y，并自动填入表格张紧轮XY
 function calcManualNominalY() {
@@ -1181,10 +1140,8 @@ function calcManualNominalY() {
   if (tableData.value.length === 0) return
   const lastRow = tableData.value[tableData.value.length - 1]
   if (!lastRow) return
-  isAutoCalculatedXY.value = true
   lastRow.x = Number(nx.toFixed(2))
   lastRow.y = Number(ny.toFixed(2))
-  checkTensionerXY()
 }
 
 // 手调张紧轮：垂直线时，由名义位置Y计算X（X = start_x = end_x），并自动填入表格张紧轮XY
@@ -1207,10 +1164,8 @@ function calcManualNominalX() {
   if (tableData.value.length === 0) return
   const lastRow = tableData.value[tableData.value.length - 1]
   if (!lastRow) return
-  isAutoCalculatedXY.value = true
   lastRow.x = Number(nx.toFixed(2))
   lastRow.y = Number(ny.toFixed(2))
-  checkTensionerXY()
 }
 
 // 监听手调张紧轮参数变化，自动计算名义位置Y并填入表格
@@ -1224,7 +1179,6 @@ watch(
 
 // 正向计算：枢轴XY + 臂长 + 角度 → 张紧轮XY（调用后端）
 async function calculateTensionerXY() {
-  // 确保表格中有数据
   if (tableData.value.length === 0) return
 
   const pivotX = tensioner.value.automatic.pivot_x
@@ -1232,7 +1186,6 @@ async function calculateTensionerXY() {
   const armLength = tensioner.value.automatic.arm_length
   const workAngle = tensioner.value.automatic.work_angle
 
-  // 确保所有参数都有值
   if (pivotX == null || pivotY == null || armLength == null || workAngle == null) return
 
   try {
@@ -1245,21 +1198,11 @@ async function calculateTensionerXY() {
     const data = res.data || {}
     if (data.pulley_x == null || data.pulley_y == null) return
 
-    // 获取表格最后一行（张紧轮）
     const lastRow = tableData.value[tableData.value.length - 1]
     if (!lastRow) return
 
-    // 标记表格XY是自动计算的，清除枢轴和臂长角度的自动计算标志
-    isAutoCalculatedXY.value = true
-    isAutoCalculatedPivot.value = false
-    isAutoCalculatedArmAngle.value = false
-
-    // 更新表格数据
     lastRow.x = Number(Number(data.pulley_x).toFixed(2))
     lastRow.y = Number(Number(data.pulley_y).toFixed(2))
-
-    // 触发检测
-    checkTensionerXY()
   } catch (e) {
     console.error('张紧轮坐标计算失败:', e)
   }
@@ -1269,7 +1212,6 @@ async function calculateTensionerXY() {
 async function calculatePivotXY() {
   if (tableData.value.length === 0) return
 
-  // 获取表格最后一行（张紧轮）
   const lastRow = tableData.value[tableData.value.length - 1]
   if (!lastRow || lastRow.x == null || lastRow.y == null) return
 
@@ -1288,28 +1230,10 @@ async function calculatePivotXY() {
     const data = res.data || {}
     if (data.pivot_x == null || data.pivot_y == null) return
 
-    // 设置反向计算标志，阻止枢轴XY的watch触发正向计算
-    isReversing.value = true
-
-    // 标记枢轴XY是自动计算的，清除表格和臂长角度的自动计算标志
-    isAutoCalculatedPivot.value = true
-    isAutoCalculatedXY.value = false
-    isAutoCalculatedArmAngle.value = false
-
-    // 更新枢轴XY
     tensioner.value.automatic.pivot_x = Number(Number(data.pivot_x).toFixed(2))
     tensioner.value.automatic.pivot_y = Number(Number(data.pivot_y).toFixed(2))
-
-    // 触发检测
-    checkTensionerXY()
-
-    // 下一帧清除反向计算标志
-    setTimeout(() => {
-      isReversing.value = false
-    }, 0)
   } catch (e) {
     console.error('枢轴坐标计算失败:', e)
-    isReversing.value = false
   }
 }
 
@@ -1317,7 +1241,6 @@ async function calculatePivotXY() {
 async function calculateArmAngle() {
   if (tableData.value.length === 0) return
 
-  // 获取表格最后一行（张紧轮）
   const lastRow = tableData.value[tableData.value.length - 1]
   if (!lastRow || lastRow.x == null || lastRow.y == null) return
 
@@ -1336,12 +1259,6 @@ async function calculateArmAngle() {
     const data = res.data || {}
     if (data.arm_length == null || data.work_angle == null) return
 
-    // 标记臂长角度是自动计算的，清除其他自动计算标志
-    isAutoCalculatedArmAngle.value = true
-    isAutoCalculatedXY.value = false
-    isAutoCalculatedPivot.value = false
-
-    // 更新臂长和角度
     tensioner.value.automatic.arm_length = Number(Number(data.arm_length).toFixed(2))
     tensioner.value.automatic.work_angle = Number(Number(data.work_angle).toFixed(2))
   } catch (e) {
