@@ -740,10 +740,12 @@ const hasPivotXY = ref(false)
 const hasArmAngle = ref(false)
 // 标记表格XY是否由自动计算填入（而非用户手动输入）
 const isAutoCalculatedXY = ref(false)
+// 标记是否正在进行反向计算（张紧轮XY → 枢轴XY），用于阻止循环触发
+const isReversing = ref(false)
 
-// 计算禁用状态 - 只有用户手动输入表格XY时才互斥
+// 计算禁用状态 - 只有用户同时手动输入了枢轴XY和张紧轮XY时才互斥
 const disablePivotXY = computed(() => {
-  return hasArmAngle.value && hasTensionerXY.value && !isAutoCalculatedXY.value
+  return hasPivotXY.value && hasTensionerXY.value && !isAutoCalculatedXY.value
 })
 
 const disableArmAngle = computed(() => {
@@ -1078,7 +1080,10 @@ watchEffect(() => {
 // 监听枢轴XY变化，但不触发自动计算
 watch([() => tensioner.value.automatic.pivot_x, () => tensioner.value.automatic.pivot_y], 
 () => {
-  // 只有当有用户手动输入时才计算（不是自动计算状态）
+  // 如果正在反向计算（由张紧轮XY触发的），跳过正向计算，避免循环
+  if (isReversing.value) return
+  
+  // 如果是自动计算状态（由反向计算触发），跳过正向计算
   if (isAutoCalculatedXY.value) return
   
   if (tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null) {
@@ -1220,14 +1225,23 @@ async function calculatePivotXY() {
     const data = res.data || {}
     if (data.pivot_x == null || data.pivot_y == null) return
 
+    // 设置反向计算标志，阻止枢轴XY的watch触发正向计算
+    isReversing.value = true
+
     // 更新枢轴XY
     tensioner.value.automatic.pivot_x = Number(Number(data.pivot_x).toFixed(2))
     tensioner.value.automatic.pivot_y = Number(Number(data.pivot_y).toFixed(2))
 
     // 触发检测
     checkTensionerXY()
+
+    // 下一帧清除反向计算标志
+    setTimeout(() => {
+      isReversing.value = false
+    }, 0)
   } catch (e) {
     console.error('枢轴坐标计算失败:', e)
+    isReversing.value = false
   }
 }
 
