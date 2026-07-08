@@ -1078,7 +1078,9 @@ watchEffect(() => {
 // 监听枢轴XY变化，但不触发自动计算
 watch([() => tensioner.value.automatic.pivot_x, () => tensioner.value.automatic.pivot_y], 
 () => {
-  // 只有当有用户手动输入时才计算
+  // 只有当有用户手动输入时才计算（不是自动计算状态）
+  if (isAutoCalculatedXY.value) return
+  
   if (tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null) {
     // 如果臂长和角度也都有值，则计算
     if (tensioner.value.automatic.arm_length != null && tensioner.value.automatic.work_angle != null) {
@@ -1218,9 +1220,7 @@ async function calculatePivotXY() {
     const data = res.data || {}
     if (data.pivot_x == null || data.pivot_y == null) return
 
-    // 标记为自动计算，避免触发互斥逻辑
-    isAutoCalculatedXY.value = true
-
+    // 更新枢轴XY
     tensioner.value.automatic.pivot_x = Number(Number(data.pivot_x).toFixed(2))
     tensioner.value.automatic.pivot_y = Number(Number(data.pivot_y).toFixed(2))
 
