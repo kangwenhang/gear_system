@@ -746,6 +746,8 @@ const isAutoCalculatedPivot = ref(false)
 const isAutoCalculatedArmAngle = ref(false)
 // 标记是否正在进行反向计算（张紧轮XY → 枢轴XY），用于阻止循环触发
 const isReversing = ref(false)
+// 标记是否正在进行双向反推（枢轴XY + 张紧轮XY → 臂长 + 角度），用于阻止正向计算
+const isCalculatingArmAngle = ref(false)
 
 // 计算禁用状态
 const disablePivotXY = computed(() => {
@@ -1095,7 +1097,10 @@ function onPivotXYChange() {
   const hasPivot = tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
   
   if (hasPivot && hasTensioner) {
-    calculateArmAngle()
+    isCalculatingArmAngle.value = true
+    calculateArmAngle().finally(() => {
+      isCalculatingArmAngle.value = false
+    })
   }
 }
 
@@ -1104,6 +1109,11 @@ watch([() => tensioner.value.automatic.arm_length, () => tensioner.value.automat
 () => {
   const armLength = tensioner.value.automatic.arm_length
   const workAngle = tensioner.value.automatic.work_angle
+  
+  // 如果正在进行双向反推，跳过计算（臂长角度是自动计算的结果）
+  if (isCalculatingArmAngle.value) {
+    return
+  }
   
   // 用户手动修改臂长角度时，清除自动计算标志
   isAutoCalculatedArmAngle.value = false
@@ -1134,6 +1144,8 @@ watch([() => tensioner.value.automatic.pivot_x, () => tensioner.value.automatic.
 () => {
   // 如果正在反向计算（由张紧轮XY触发的），跳过正向计算，避免循环
   if (isReversing.value) return
+  // 如果正在进行双向反推，跳过正向计算，避免覆盖张紧轮XY
+  if (isCalculatingArmAngle.value) return
   
   if (tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null) {
     // 如果臂长和角度也都有值，则计算
