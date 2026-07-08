@@ -966,6 +966,12 @@ const tableData = ref(
 // 初始化时检查张紧轮XY状态
 checkTensionerXY()
 
+// 如果表格数据是从sharedStore加载的，标记为自动计算状态
+// 这样用户输入臂长和工作角度时可以正常触发正向计算
+if (sharedStore.pulleys.length > 0) {
+  isAutoCalculatedXY.value = true
+}
+
 // 监听表格数据变化，自动推导旋转方向（仅在自动张紧轮模式下）
 watch(
   () => tableData.value.map(p => ({ x: p.x, y: p.y, flat_dia: p.flat_dia, groove_dia: p.groove_dia, type: p.type })),
@@ -1080,14 +1086,11 @@ watchEffect(() => {
   hasPivotXY.value = tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null
 })
 
-// 监听枢轴XY变化，但不触发自动计算
+// 监听枢轴XY变化
 watch([() => tensioner.value.automatic.pivot_x, () => tensioner.value.automatic.pivot_y], 
 () => {
   // 如果正在反向计算（由张紧轮XY触发的），跳过正向计算，避免循环
   if (isReversing.value) return
-  
-  // 如果是自动计算状态（由反向计算触发），跳过正向计算
-  if (isAutoCalculatedXY.value) return
   
   if (tensioner.value.automatic.pivot_x != null && tensioner.value.automatic.pivot_y != null) {
     // 如果臂长和角度也都有值，则计算
