@@ -27,65 +27,7 @@
       </template>
       <div class="diagram-content">
         <div class="diagram-image-wrapper">
-          <svg viewBox="0 0 480 360" class="alignment-svg">
-            <defs>
-              <marker id="arrowHead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#606266"/>
-              </marker>
-              <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#f56c6c"/>
-              </marker>
-            </defs>
-
-            <text x="240" y="24" text-anchor="middle" font-size="15" font-weight="600" fill="#1d2129">对齐度测量示意图</text>
-
-            <ellipse cx="200" cy="80" rx="45" ry="16" fill="none" stroke="#409eff" stroke-width="2"/>
-            <line x1="200" y1="64" x2="200" y2="96" stroke="#409eff" stroke-width="2"/>
-            <circle cx="200" cy="80" r="4" fill="#409eff"/>
-
-            <path d="M 155 80 A 45 45 0 0 1 230 72" fill="none" stroke="#f56c6c" stroke-width="2" stroke-dasharray="4 2" marker-end="url(#arrowRed)"/>
-            <text x="200" y="50" text-anchor="middle" font-size="12" fill="#f56c6c" font-weight="600">TOE</text>
-
-            <line x1="200" y1="96" x2="200" y2="140" stroke="#909399" stroke-width="1.5" stroke-dasharray="3 2"/>
-            <text x="208" y="120" font-size="11" fill="#909399">测量位置</text>
-
-            <ellipse cx="200" cy="180" rx="50" ry="18" fill="none" stroke="#67c23a" stroke-width="2"/>
-            <circle cx="200" cy="180" r="4" fill="#67c23a"/>
-            <text x="258" y="184" font-size="11" fill="#67c23a" font-weight="600">TEST IDLER</text>
-
-            <ellipse cx="380" cy="160" rx="55" ry="30" fill="none" stroke="#e6a23c" stroke-width="2"/>
-            <circle cx="380" cy="160" r="5" fill="#e6a23c"/>
-            <text x="380" y="130" text-anchor="middle" font-size="12" fill="#e6a23c" font-weight="600">#1 DRIVER</text>
-            <path d="M 360 145 A 30 20 0 0 1 405 155" fill="none" stroke="#f56c6c" stroke-width="1.5" marker-end="url(#arrowRed)"/>
-
-            <path d="M 250 175 Q 310 155 340 150" fill="none" stroke="#303133" stroke-width="2"/>
-            <text x="290" y="140" font-size="11" fill="#303133">BELT DIRECTION →</text>
-
-            <ellipse cx="120" cy="230" rx="35" ry="20" fill="none" stroke="#909399" stroke-width="2"/>
-            <circle cx="120" cy="230" r="3" fill="#909399"/>
-            <text x="120" y="268" text-anchor="middle" font-size="11" fill="#909399" font-weight="600">#3 (惰轮)</text>
-
-            <path d="M 155 220 Q 180 200 200 195" fill="none" stroke="#303133" stroke-width="2"/>
-
-            <ellipse cx="80" cy="300" rx="22" ry="14" fill="none" stroke="#606266" stroke-width="2"/>
-            <rect x="30" y="294" width="50" height="12" fill="#909399" stroke="#606266" stroke-width="1.5" rx="2"/>
-            <line x1="25" y1="300" x2="5" y2="300" stroke="#f56c6c" stroke-width="2" marker-end="url(#arrowRed)"/>
-            <text x="15" y="322" font-size="10" fill="#606266">LOAD CELL</text>
-
-            <path d="M 100 290 Q 150 270 200 250" fill="none" stroke="#303133" stroke-width="2"/>
-            <path d="M 100 310 Q 150 290 200 270" fill="none" stroke="#303133" stroke-width="2"/>
-
-            <ellipse cx="320" cy="260" rx="50" ry="18" fill="none" stroke="#409eff" stroke-width="2"/>
-            <line x1="320" y1="242" x2="320" y2="278" stroke="#409eff" stroke-width="2" transform="rotate(-15 320 260)"/>
-            <circle cx="320" cy="260" r="4" fill="#409eff"/>
-
-            <path d="M 270 260 A 50 50 0 0 1 365 245" fill="none" stroke="#f56c6c" stroke-width="2" stroke-dasharray="4 2" marker-end="url(#arrowRed)" transform="rotate(-15 320 260)"/>
-            <text x="320" y="225" text-anchor="middle" font-size="12" fill="#f56c6c" font-weight="600">CAMBER</text>
-
-            <line x1="375" y1="270" x2="430" y2="290" stroke="#606266" stroke-width="1.5" stroke-dasharray="3 2"/>
-            <polygon points="430 290, 424 287, 427 293" fill="#606266"/>
-            <text x="430" y="305" text-anchor="middle" font-size="11" fill="#606266" font-weight="600">+ OFFSET</text>
-          </svg>
+          <img src="/images/alignment_diagram.png" alt="对齐度示意图" class="alignment-diagram-img" />
         </div>
         <div class="diagram-desc">
           <div class="desc-section">
@@ -526,17 +468,10 @@ function formatNum(val) {
   justify-content: center;
 }
 
-.alignment-svg {
-  width: 100%;
-  height: auto;
-  max-height: 320px;
-}
-
 .alignment-diagram-img {
   max-width: 100%;
-  max-height: 320px;
+  max-height: 360px;
   object-fit: contain;
-  border-radius: 6px;
 }
 
 .diagram-desc {
