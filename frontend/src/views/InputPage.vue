@@ -514,6 +514,17 @@
                   <el-input-number v-model="tensioner.automatic.head_size" :precision="2" :controls="false" style="width:100%" placeholder="--" />
                 </el-form-item>
               </el-col>
+              <el-col :span="4">
+                <el-form-item label="" class="reset-btn-form-item">
+                  <el-button type="danger" plain class="reset-pivot-btn" @click="resetPivotArmData">
+                    <svg style="width:12px;height:12px;margin-right:4px;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="1 4 1 10 7 10"/>
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                    重置数据
+                  </el-button>
+                </el-form-item>
+              </el-col>
             </el-row>
           </div>
 
@@ -1340,6 +1351,24 @@ async function calculateArmAngle() {
   }
 }
 
+function resetPivotArmData() {
+  ElMessageBox.confirm('确定要重置枢轴与臂参数吗？此操作不可撤销。', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    // 重置枢轴参数
+    tensioner.value.automatic.pivot_x = null
+    tensioner.value.automatic.pivot_y = null
+    // 重置臂长和工作角度
+    tensioner.value.automatic.arm_length = null
+    tensioner.value.automatic.work_angle = null
+    // 重置计算模式
+    calcMode.value = '1'
+    ElMessage.success('已重置')
+  }).catch(() => {})
+}
+
 function createRow() {
   return {
     name: '',
@@ -1702,6 +1731,29 @@ const goToCalculate = async () => {
 
 .param-section:last-child {
   margin-bottom: 0;
+}
+
+.reset-btn-form-item {
+  margin-bottom: 18px;
+}
+
+.reset-btn-form-item :deep(.el-form-item__content) {
+  line-height: 32px;
+  padding-top: 34px;
+}
+
+.reset-pivot-btn {
+  width: 100%;
+  height: 32px;
+  line-height: 30px;
+  padding: 0 15px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin: 0;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .param-section-title {
