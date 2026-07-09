@@ -452,16 +452,18 @@ function formatNum(val) {
 
 .diagram-content {
   display: flex;
-  gap: 24px;
-  align-items: flex-start;
+  gap: 20px;
+  align-items: stretch;
 }
 
 .diagram-image-wrapper {
   flex-shrink: 0;
-  width: 420px;
+  width: 44%;
+  min-width: 360px;
+  max-width: 480px;
   background: #ffffff;
   border-radius: 10px;
-  padding: 16px;
+  padding: 20px;
   border: 1px solid #e4e7ed;
   display: flex;
   align-items: center;
@@ -470,17 +472,24 @@ function formatNum(val) {
 
 .alignment-diagram-img {
   max-width: 100%;
-  max-height: 360px;
+  max-height: 100%;
   object-fit: contain;
+  display: block;
 }
 
 .diagram-desc {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .desc-section {
-  margin-bottom: 16px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 14px 18px;
+  border: 1px solid #e8ecf1;
 }
 
 .desc-section:last-child {
@@ -490,13 +499,18 @@ function formatNum(val) {
 .desc-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   color: #409eff;
   margin-bottom: 10px;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   border-bottom: 1px dashed #e8ecf1;
+}
+
+.desc-title svg {
+  width: 16px;
+  height: 16px;
 }
 
 .desc-text {
@@ -513,13 +527,18 @@ function formatNum(val) {
 
 .desc-list {
   margin: 8px 0;
-  padding-left: 20px;
+  padding-left: 18px;
 }
 
 .desc-list li {
   font-size: 13px;
   color: #606266;
-  line-height: 2;
+  line-height: 1.9;
+  margin-bottom: 4px;
+}
+
+.desc-list li:last-child {
+  margin-bottom: 0;
 }
 
 .desc-list li strong {
@@ -531,10 +550,18 @@ function formatNum(val) {
 @media (max-width: 900px) {
   .diagram-content {
     flex-direction: column;
+    align-items: flex-start;
   }
 
   .diagram-image-wrapper {
     width: 100%;
+    min-width: auto;
+    max-width: none;
+    padding: 16px;
+  }
+
+  .alignment-diagram-img {
+    max-height: 320px;
   }
 }
 
