@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+  <Code>NoSuchKey</Code>
+  <Message>The specified key does not exist.</Message>
+  <RequestId>6A4EF0DBB3472A33322799B1</RequestId>
+  <HostId>smallfile-chatglm.oss-cn-beijing.aliyuncs.com</HostId>
+  <Key>images-ppt/ee28db50-0d46-49d5-9e0c-8ee6d5f9e7f0_0.png</Key>
+  <EC>0026-00000001</EC>
+  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>
+</Error>
