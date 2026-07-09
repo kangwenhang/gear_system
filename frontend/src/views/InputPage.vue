@@ -443,17 +443,51 @@
               <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
               枢轴与臂参数
             </div>
-            <el-row :gutter="16" style="margin-bottom: 8px">
-              <el-col :span="12">
-                <el-form-item label="计算模式">
-                  <el-radio-group v-model="calcMode" size="small">
-                    <el-radio-button value="1" :disabled="disableMode1">枢轴+臂长+角度 → 张紧轮</el-radio-button>
-                    <el-radio-button value="2" :disabled="disableMode2">张紧轮+臂长+角度 → 枢轴</el-radio-button>
-                    <el-radio-button value="3" :disabled="disableMode3">枢轴+张紧轮 → 臂长+角度</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
-              </el-col>
-            </el-row>
+            <div class="calc-mode-selector">
+              <div class="calc-mode-label">计算模式</div>
+              <div class="calc-mode-options">
+                <div
+                  class="calc-mode-card"
+                  :class="{ active: calcMode === '1', disabled: disableMode1 }"
+                  @click="!disableMode1 && (calcMode = '1')"
+                >
+                  <div class="mode-icon-wrapper blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l0 20M2 12l20 0M9.172 9.172l5.656 5.656M14.828 9.172l-5.656 5.656"/>
+                    </svg>
+                  </div>
+                  <div class="mode-title">正向计算</div>
+                  <div class="mode-desc">枢轴 + 臂长 + 角度 → 张紧轮</div>
+                </div>
+                <div
+                  class="calc-mode-card"
+                  :class="{ active: calcMode === '2', disabled: disableMode2 }"
+                  @click="!disableMode2 && (calcMode = '2')"
+                >
+                  <div class="mode-icon-wrapper green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 19l-7-7 7-7M19 12l-7 7-7-7"/>
+                    </svg>
+                  </div>
+                  <div class="mode-title">反向计算</div>
+                  <div class="mode-desc">张紧轮 + 臂长 + 角度 → 枢轴</div>
+                </div>
+                <div
+                  class="calc-mode-card"
+                  :class="{ active: calcMode === '3', disabled: disableMode3 }"
+                  @click="!disableMode3 && (calcMode = '3')"
+                >
+                  <div class="mode-icon-wrapper purple">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+                    </svg>
+                  </div>
+                  <div class="mode-title">双向反推</div>
+                  <div class="mode-desc">枢轴 + 张紧轮 → 臂长 + 角度</div>
+                </div>
+              </div>
+            </div>
             <el-row :gutter="16">
               <el-col :span="4">
                 <el-form-item label="枢轴 X">
@@ -1733,6 +1767,124 @@ const goToCalculate = async () => {
   width: 100%;
   max-width: 120px;
   height: auto;
+}
+
+/* ===== 计算模式选择器 ===== */
+.calc-mode-selector {
+  margin-bottom: 16px;
+}
+
+.calc-mode-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4e5969;
+  margin-bottom: 10px;
+}
+
+.calc-mode-options {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.calc-mode-card {
+  flex: 1;
+  min-width: 220px;
+  max-width: 280px;
+  padding: 16px 18px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 2px solid #e4e7ed;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.calc-mode-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  transition: background 0.3s ease;
+}
+
+.calc-mode-card:hover:not(.disabled) {
+  border-color: #c0c4cc;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.calc-mode-card.active {
+  border-color: #409eff;
+  background: #f0f5ff;
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.15);
+}
+
+.calc-mode-card.active::before {
+  background: linear-gradient(90deg, #409eff, #66b1ff);
+}
+
+.calc-mode-card.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mode-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.mode-icon-wrapper svg {
+  width: 22px;
+  height: 22px;
+  color: #ffffff;
+}
+
+.mode-icon-wrapper.blue {
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+}
+
+.mode-icon-wrapper.green {
+  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+}
+
+.mode-icon-wrapper.purple {
+  background: linear-gradient(135deg, #909399 0%, #b4bccc 100%);
+}
+
+.calc-mode-card.active .mode-icon-wrapper {
+  transform: scale(1.1);
+}
+
+.mode-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2129;
+  margin-top: 4px;
+}
+
+.mode-desc {
+  font-size: 12px;
+  color: #86909c;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.calc-mode-card.active .mode-title {
+  color: #409eff;
 }
 
 /* ===== 响应式 ===== */
