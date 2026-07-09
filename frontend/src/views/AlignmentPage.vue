@@ -13,6 +13,121 @@
       </div>
     </div>
 
+    <!-- 对齐度示意图 -->
+    <el-card shadow="hover" class="diagram-card">
+      <template #header>
+        <div class="card-header">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <span>对齐度示意图与说明</span>
+        </div>
+      </template>
+      <div class="diagram-content">
+        <div class="diagram-image-wrapper">
+          <svg viewBox="0 0 480 360" class="alignment-svg">
+            <defs>
+              <marker id="arrowHead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#606266"/>
+              </marker>
+              <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#f56c6c"/>
+              </marker>
+            </defs>
+
+            <text x="240" y="24" text-anchor="middle" font-size="15" font-weight="600" fill="#1d2129">对齐度测量示意图</text>
+
+            <ellipse cx="200" cy="80" rx="45" ry="16" fill="none" stroke="#409eff" stroke-width="2"/>
+            <line x1="200" y1="64" x2="200" y2="96" stroke="#409eff" stroke-width="2"/>
+            <circle cx="200" cy="80" r="4" fill="#409eff"/>
+
+            <path d="M 155 80 A 45 45 0 0 1 230 72" fill="none" stroke="#f56c6c" stroke-width="2" stroke-dasharray="4 2" marker-end="url(#arrowRed)"/>
+            <text x="200" y="50" text-anchor="middle" font-size="12" fill="#f56c6c" font-weight="600">TOE</text>
+
+            <line x1="200" y1="96" x2="200" y2="140" stroke="#909399" stroke-width="1.5" stroke-dasharray="3 2"/>
+            <text x="208" y="120" font-size="11" fill="#909399">测量位置</text>
+
+            <ellipse cx="200" cy="180" rx="50" ry="18" fill="none" stroke="#67c23a" stroke-width="2"/>
+            <circle cx="200" cy="180" r="4" fill="#67c23a"/>
+            <text x="258" y="184" font-size="11" fill="#67c23a" font-weight="600">TEST IDLER</text>
+
+            <ellipse cx="380" cy="160" rx="55" ry="30" fill="none" stroke="#e6a23c" stroke-width="2"/>
+            <circle cx="380" cy="160" r="5" fill="#e6a23c"/>
+            <text x="380" y="130" text-anchor="middle" font-size="12" fill="#e6a23c" font-weight="600">#1 DRIVER</text>
+            <path d="M 360 145 A 30 20 0 0 1 405 155" fill="none" stroke="#f56c6c" stroke-width="1.5" marker-end="url(#arrowRed)"/>
+
+            <path d="M 250 175 Q 310 155 340 150" fill="none" stroke="#303133" stroke-width="2"/>
+            <text x="290" y="140" font-size="11" fill="#303133">BELT DIRECTION →</text>
+
+            <ellipse cx="120" cy="230" rx="35" ry="20" fill="none" stroke="#909399" stroke-width="2"/>
+            <circle cx="120" cy="230" r="3" fill="#909399"/>
+            <text x="120" y="268" text-anchor="middle" font-size="11" fill="#909399" font-weight="600">#3 (惰轮)</text>
+
+            <path d="M 155 220 Q 180 200 200 195" fill="none" stroke="#303133" stroke-width="2"/>
+
+            <ellipse cx="80" cy="300" rx="22" ry="14" fill="none" stroke="#606266" stroke-width="2"/>
+            <rect x="30" y="294" width="50" height="12" fill="#909399" stroke="#606266" stroke-width="1.5" rx="2"/>
+            <line x1="25" y1="300" x2="5" y2="300" stroke="#f56c6c" stroke-width="2" marker-end="url(#arrowRed)"/>
+            <text x="15" y="322" font-size="10" fill="#606266">LOAD CELL</text>
+
+            <path d="M 100 290 Q 150 270 200 250" fill="none" stroke="#303133" stroke-width="2"/>
+            <path d="M 100 310 Q 150 290 200 270" fill="none" stroke="#303133" stroke-width="2"/>
+
+            <ellipse cx="320" cy="260" rx="50" ry="18" fill="none" stroke="#409eff" stroke-width="2"/>
+            <line x1="320" y1="242" x2="320" y2="278" stroke="#409eff" stroke-width="2" transform="rotate(-15 320 260)"/>
+            <circle cx="320" cy="260" r="4" fill="#409eff"/>
+
+            <path d="M 270 260 A 50 50 0 0 1 365 245" fill="none" stroke="#f56c6c" stroke-width="2" stroke-dasharray="4 2" marker-end="url(#arrowRed)" transform="rotate(-15 320 260)"/>
+            <text x="320" y="225" text-anchor="middle" font-size="12" fill="#f56c6c" font-weight="600">CAMBER</text>
+
+            <line x1="375" y1="270" x2="430" y2="290" stroke="#606266" stroke-width="1.5" stroke-dasharray="3 2"/>
+            <polygon points="430 290, 424 287, 427 293" fill="#606266"/>
+            <text x="430" y="305" text-anchor="middle" font-size="11" fill="#606266" font-weight="600">+ OFFSET</text>
+          </svg>
+        </div>
+        <div class="diagram-desc">
+          <div class="desc-section">
+            <div class="desc-title">
+              <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              敏感方向说明
+            </div>
+            <p class="desc-text">
+              带轮的倾斜方向，对齐度影响是不一样的，其最大影响方向为<strong>敏感方向</strong>。
+            </p>
+            <p class="desc-text">
+              <strong>敏感方向</strong>（本软件定义的敏感方向与GATES，SAE等文献资料可能存在出入）：
+            </p>
+            <ul class="desc-list">
+              <li>槽轮作为皮带<strong>输出端</strong>，其敏感方向为 HUBLOAD 垂直方向</li>
+              <li>槽轮作为皮带<strong>输入端</strong>，其敏感方向为 HUBLOAD 方向</li>
+              <li>平轮敏感方向为皮带进入段方向</li>
+            </ul>
+            <p class="desc-text">
+              contact项，exit和entry分别是切出点和切入点包角线角度，可根据此计算HUBLOAD方向。
+            </p>
+          </div>
+          <div class="desc-section">
+            <div class="desc-title">
+              <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              计算原则
+            </div>
+            <p class="desc-text">
+              每两个槽轮之间独立计算对齐度，计算下一段时，将前面的输入清零。按<strong>最恶劣条件</strong>进行计算。即：
+            </p>
+            <ul class="desc-list">
+              <li>第一个槽轮作为<strong>输出端</strong>，其倾斜方向取HUBLOAD垂直方向，平轮倾斜方向取皮带进入段方向</li>
+              <li>第二个槽轮作为<strong>输入端</strong>，其倾斜方向为HUBLOAD方向</li>
+              <li>皮带输出槽轮和平轮的倾斜方向，要保证输出轮切点与平轮切入点都向一个方向（向内或向外）</li>
+              <li>皮带输入槽轮的切入点与以上两个方向相反，用<strong>右手法则</strong>判定</li>
+              <li>皮带输入槽轮的中心高差也与前两轮的偏出方向相反</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </el-card>
+
     <!-- 带轮对齐度输入 -->
     <el-card shadow="hover" class="input-card">
       <template #header>
@@ -386,6 +501,106 @@ function formatNum(val) {
 
 .input-card {
   margin-bottom: 20px;
+}
+
+/* ===== 对齐度示意图卡片 ===== */
+.diagram-card {
+  margin-bottom: 20px;
+}
+
+.diagram-content {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.diagram-image-wrapper {
+  flex-shrink: 0;
+  width: 420px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #e4e7ed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alignment-svg {
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+}
+
+.alignment-diagram-img {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.diagram-desc {
+  flex: 1;
+  min-width: 0;
+}
+
+.desc-section {
+  margin-bottom: 16px;
+}
+
+.desc-section:last-child {
+  margin-bottom: 0;
+}
+
+.desc-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #e8ecf1;
+}
+
+.desc-text {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.8;
+  margin: 6px 0;
+}
+
+.desc-text strong {
+  color: #303133;
+  font-weight: 600;
+}
+
+.desc-list {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.desc-list li {
+  font-size: 13px;
+  color: #606266;
+  line-height: 2;
+}
+
+.desc-list li strong {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
+/* 移动端适配 */
+@media (max-width: 900px) {
+  .diagram-content {
+    flex-direction: column;
+  }
+
+  .diagram-image-wrapper {
+    width: 100%;
+  }
 }
 
 .pulley-table-wrapper {
