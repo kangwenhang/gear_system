@@ -457,7 +457,7 @@
                     </svg>
                   </div>
                   <div class="mode-title">正向计算</div>
-                  <div class="mode-desc">枢轴 + 臂长 + 角度 → 张紧轮</div>
+                  <div class="mode-desc">枢轴XY + 臂长 + 工作角度 → 张紧轮XY</div>
                 </div>
                 <div
                   class="calc-mode-card"
@@ -470,7 +470,7 @@
                     </svg>
                   </div>
                   <div class="mode-title">反向计算</div>
-                  <div class="mode-desc">张紧轮 + 臂长 + 角度 → 枢轴</div>
+                  <div class="mode-desc">张紧轮XY + 臂长 + 工作角度 → 枢轴XY</div>
                 </div>
                 <div
                   class="calc-mode-card"
@@ -484,7 +484,7 @@
                     </svg>
                   </div>
                   <div class="mode-title">双向反推</div>
-                  <div class="mode-desc">枢轴 + 张紧轮 → 臂长 + 角度</div>
+                  <div class="mode-desc">枢轴XY + 张紧轮XY → 臂长 + 工作角度</div>
                 </div>
               </div>
             </div>
