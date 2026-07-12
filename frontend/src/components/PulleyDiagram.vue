@@ -590,8 +590,8 @@ function forceArrowHeadPoints(p) {
   const px = p.forceArrowEndX
   const py = p.forceArrowEndY
   
-  const perpX = -ny
-  const perpY = nx
+  const perpX = ny
+  const perpY = -nx
   
   const x1 = px - arrowSize * nx + arrowSize * perpX * 0.5
   const y1 = py - arrowSize * ny + arrowSize * perpY * 0.5
