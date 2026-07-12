@@ -103,16 +103,6 @@
             :points="forceArrowHeadPoints(p)"
             fill="#ff4d4f"
           />
-          <text
-            :x="p.forceLabelX"
-            :y="p.forceLabelY"
-            text-anchor="middle"
-            font-size="11"
-            font-weight="bold"
-            fill="#ff4d4f"
-          >
-            U={{ ((p.forceAngle + 180) % 360).toFixed(1) }}°
-          </text>
         </g>
         
         <!-- 轮子名称（放在圆心） -->
