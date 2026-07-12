@@ -11,343 +11,369 @@
         <h2 class="page-title">对齐度计算</h2>
         <span class="page-subtitle">轮系对齐分析</span>
       </div>
-      <el-button type="primary" size="large" @click="handleCalculate" :loading="calculating">
-        <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-        计算对齐度
-      </el-button>
     </div>
 
-    <!-- 输入参数卡片 -->
-    <el-card shadow="hover" class="input-card">
-      <template #header>
-        <div class="card-header">
-          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2v20M2 12h20"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-          <span>对齐度输入参数</span>
-        </div>
-      </template>
-
-      <el-form :model="formData" label-position="top" class="input-form">
-        <el-row :gutter="24">
-          <el-col :span="6">
-            <el-form-item label="中心高差 (mm)">
-              <el-input-number
-                v-model="formData.centerHeight"
-                :precision="2"
-                :controls="false"
-                style="width: 100%"
-                placeholder="请输入中心高差"
-                @change="handleInputChange"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="垂直度 (mm/m)">
-              <el-input-number
-                v-model="formData.perpendicularity"
-                :precision="2"
-                :controls="false"
-                style="width: 100%"
-                placeholder="请输入垂直度"
-                @change="handleInputChange"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="说明">
-              <div class="hint-text">
-                输入中心高差和垂直度后，点击「计算对齐度」按钮，系统将自动计算各带轮对的切入角 BEA 等对齐度参数。
-              </div>
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </el-form>
-    </el-card>
-
-    <!-- 对齐度结果表格 -->
-    <el-card shadow="hover" class="result-card" v-if="resultList.length > 0">
+    <!-- 对齐度示意图 -->
+    <el-card shadow="hover" class="diagram-card">
       <template #header>
         <div class="card-header">
           <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <line x1="3" y1="9" x2="21" y2="9"/>
-            <line x1="3" y1="15" x2="21" y2="15"/>
-            <line x1="9" y1="3" x2="9" y2="21"/>
-            <line x1="15" y1="3" x2="15" y2="21"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
           </svg>
-          <span>对齐度计算结果</span>
-          <el-tag size="small" type="info" class="count-tag">{{ resultList.length }} 对带轮</el-tag>
+          <span>对齐度示意图与说明</span>
         </div>
       </template>
-
-      <div class="table-wrapper">
-        <el-table
-          :data="resultList"
-          border
-          stripe
-          :header-cell-style="headerStyle"
-          :cell-style="cellStyle"
-          size="default"
-        >
-          <!-- 带轮对标识 -->
-          <el-table-column label="带轮对" width="140" align="center" fixed>
-            <template #header>
-              <div class="col-header">From → To</div>
-            </template>
-            <template #default="scope">
-              <span class="pulley-pair">
-                <span class="pulley-code">{{ scope.row.pulley_from }}</span>
-                <span class="arrow">→</span>
-                <span class="pulley-code">{{ scope.row.pulley_to }}</span>
-              </span>
-            </template>
-          </el-table-column>
-
-          <!-- Contact -->
-          <el-table-column label="Contact" align="center">
-            <el-table-column prop="contact_exit" label="Exit" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.contact_exit !== null">{{ formatNum(scope.row.contact_exit) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="contact_entry" label="Entry" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.contact_entry !== null">{{ formatNum(scope.row.contact_entry) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-          </el-table-column>
-
-          <!-- 包角 -->
-          <el-table-column prop="wrap_angle" label="包角" width="90" align="center">
-            <template #default="scope">
-              <span v-if="scope.row.wrap_angle !== null">{{ formatNum(scope.row.wrap_angle) }}</span>
-              <span v-else class="na-text">--</span>
-            </template>
-          </el-table-column>
-
-          <!-- Check -->
-          <el-table-column prop="check" label="Check" width="90" align="center">
-            <template #default="scope">
-              <span v-if="scope.row.check !== null">{{ formatNum(scope.row.check) }}</span>
-              <span v-else class="na-text">--</span>
-            </template>
-          </el-table-column>
-
-          <!-- 中心高差 -->
-          <el-table-column label="中心高差" width="90" align="center">
-            <template #header>
-              <div class="col-header-blue">中心高差</div>
-            </template>
-            <template #default="scope">
-              <span v-if="scope.row.center_height_diff !== null">{{ formatNum(scope.row.center_height_diff) }}</span>
-              <span v-else class="na-text">--</span>
-            </template>
-          </el-table-column>
-
-          <!-- 垂直度 -->
-          <el-table-column label="垂直度" width="90" align="center">
-            <template #header>
-              <div class="col-header-blue">垂直度</div>
-            </template>
-            <template #default="scope">
-              <span v-if="scope.row.perpendicularity !== null">{{ formatNum(scope.row.perpendicularity) }}</span>
-              <span v-else class="na-text">--</span>
-            </template>
-          </el-table-column>
-
-          <!-- 倾斜方向 -->
-          <el-table-column prop="tilt_direction" label="倾斜方向" width="90" align="center">
-            <template #default="scope">
-              <span v-if="scope.row.tilt_direction !== null">{{ formatNum(scope.row.tilt_direction) }}</span>
-              <span v-else class="na-text">--</span>
-            </template>
-          </el-table-column>
-
-          <!-- Camber -->
-          <el-table-column label="Camber" align="center">
-            <el-table-column prop="camber_entry" label="Entry" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.camber_entry !== null">{{ formatNum(scope.row.camber_entry) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="camber_exit" label="Exit" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.camber_exit !== null">{{ formatNum(scope.row.camber_exit) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-          </el-table-column>
-
-          <!-- Toe -->
-          <el-table-column label="Toe" align="center">
-            <el-table-column prop="toe_entry" label="Entry" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.toe_entry !== null">{{ formatNum(scope.row.toe_entry) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="toe_exit" label="Exit" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.toe_exit !== null">{{ formatNum(scope.row.toe_exit) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-          </el-table-column>
-
-          <!-- 槽轮-槽轮 -->
-          <el-table-column label="槽轮-槽轮" align="center">
-            <template #header>
-              <div class="col-header-orange">槽轮-槽轮</div>
-            </template>
-            <el-table-column prop="bea_groove_groove" label="切入角BEA" width="110" align="center">
-              <template #header>
-                <div class="col-header-orange">切入角BEA</div>
-              </template>
-              <template #default="scope">
-                <span v-if="scope.row.bea_groove_groove !== null" class="bea-value">{{ formatNum(scope.row.bea_groove_groove) }}</span>
-                <span v-else class="na-text">N/A</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="twist_groove_groove" label="Twist" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.twist_groove_groove !== null">{{ formatNum(scope.row.twist_groove_groove) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="offset_groove_groove" label="Offset" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.offset_groove_groove !== null">{{ formatNum(scope.row.offset_groove_groove) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-          </el-table-column>
-
-          <!-- 槽轮-平轮-槽轮 -->
-          <el-table-column label="槽轮-平轮-槽轮" align="center">
-            <template #header>
-              <div class="col-header-orange-light">槽轮-平轮-槽轮</div>
-            </template>
-            <el-table-column prop="bea_groove_flat" label="切入角BEA" width="110" align="center">
-              <template #header>
-                <div class="col-header-orange-light">切入角BEA</div>
-              </template>
-              <template #default="scope">
-                <span v-if="scope.row.bea_groove_flat !== null" class="bea-value">{{ formatNum(scope.row.bea_groove_flat) }}</span>
-                <span v-else class="na-text">N/A</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="N/A" width="80" align="center">
-              <template #default>
-                <span class="na-text">N/A</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="twist_groove_flat" label="Twist" width="90" align="center">
-              <template #default="scope">
-                <span v-if="scope.row.twist_groove_flat !== null">{{ formatNum(scope.row.twist_groove_flat) }}</span>
-                <span v-else class="na-text">--</span>
-              </template>
-            </el-table-column>
-          </el-table-column>
-        </el-table>
+      <div class="diagram-content">
+        <div class="diagram-image-wrapper">
+          <img src="/images/alignment_diagram.png" alt="对齐度示意图" class="alignment-diagram-img" />
+        </div>
+        <div class="diagram-desc">
+          <div class="desc-section">
+            <div class="desc-title">
+              <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              敏感方向说明
+            </div>
+            <p class="desc-text">
+              带轮的倾斜方向，对齐度影响是不一样的，其最大影响方向为<strong>敏感方向</strong>。
+            </p>
+            <p class="desc-text">
+              <strong>敏感方向</strong>（本软件定义的敏感方向与GATES，SAE等文献资料可能存在出入）：
+            </p>
+            <ul class="desc-list">
+              <li>槽轮作为皮带<strong>输出端</strong>，其敏感方向为 HUBLOAD 垂直方向</li>
+              <li>槽轮作为皮带<strong>输入端</strong>，其敏感方向为 HUBLOAD 方向</li>
+              <li>平轮敏感方向为皮带进入段方向</li>
+            </ul>
+            <p class="desc-text">
+              contact项，exit和entry分别是切出点和切入点包角线角度，可根据此计算HUBLOAD方向。
+            </p>
+          </div>
+          <div class="desc-section">
+            <div class="desc-title">
+              <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              计算原则
+            </div>
+            <p class="desc-text">
+              每两个槽轮之间独立计算对齐度，计算下一段时，将前面的输入清零。按<strong>最恶劣条件</strong>进行计算。即：
+            </p>
+            <ul class="desc-list">
+              <li>第一个槽轮作为<strong>输出端</strong>，其倾斜方向取HUBLOAD垂直方向，平轮倾斜方向取皮带进入段方向</li>
+              <li>第二个槽轮作为<strong>输入端</strong>，其倾斜方向为HUBLOAD方向</li>
+              <li>皮带输出槽轮和平轮的倾斜方向，要保证输出轮切点与平轮切入点都向一个方向（向内或向外）</li>
+              <li>皮带输入槽轮的切入点与以上两个方向相反，用<strong>右手法则</strong>判定</li>
+              <li>皮带输入槽轮的中心高差也与前两轮的偏出方向相反</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </el-card>
 
-    <!-- 空状态 -->
-    <el-card shadow="hover" class="empty-card" v-else>
-      <el-empty description="请输入中心高差和垂直度，点击计算按钮查看结果">
-        <template #image>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
-            <path d="M12 2v20M2 12h20"/>
-            <circle cx="12" cy="12" r="3"/>
-            <circle cx="12" cy="12" r="9" stroke-dasharray="2 2"/>
+    <!-- 带轮对齐度输入 -->
+    <el-card shadow="hover" class="input-card">
+      <template #header>
+        <div class="card-header">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
           </svg>
-        </template>
-      </el-empty>
+          <span>带轮对齐度参数</span>
+          <span class="card-tip">（数据来自轮系布局，填写中心高和垂直度）</span>
+        </div>
+      </template>
+
+      <div class="pulley-table-wrapper" v-if="pulleys.length > 0">
+        <table class="pulley-table">
+          <thead>
+            <tr>
+              <th style="width: 60px">序号</th>
+              <th>带轮编号</th>
+              <th>带轮名称</th>
+              <th style="width: 160px">中心高 (mm)</th>
+              <th style="width: 160px">垂直度 (°)</th>
+              <th style="width: 160px">倾斜方向 (°)</th>
+              <th style="width: 160px">Twist (°)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(p, idx) in pulleys" :key="idx">
+              <td style="text-align: center; color: #909399">{{ idx + 1 }}</td>
+              <td style="text-align: center">
+                <span class="pulley-code">{{ p.code || '--' }}</span>
+              </td>
+              <td style="text-align: center">{{ p.name || '--' }}</td>
+              <td>
+                <el-input
+                v-model="p.centerHeightDiff"
+                placeholder="请输入"
+                style="width: 100%; text-align: center"
+              />
+              </td>
+              <td>
+                <el-input
+                v-model="p.perpendicularity"
+                placeholder="请输入"
+                style="width: 100%; text-align: center"
+              />
+              </td>
+              <td>
+                <el-input
+                v-model="p.tiltAngle"
+                placeholder="请输入"
+                style="width: 100%; text-align: center"
+              />
+              </td>
+              <td style="text-align: center; color: #606266">
+                {{ calcTwistDisplay(p) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-tip" v-else>
+        <el-empty description="暂无带轮数据，请先在轮系布局页面添加带轮" />
+      </div>
+    </el-card>
+
+    <!-- 计算结果 -->
+    <el-card v-if="alignmentPairs.length > 0" shadow="hover" class="result-card">
+      <template #header>
+        <div class="card-header">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 11 12 14 22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          <span>对齐度结果</span>
+          <span class="card-tip">（共 {{ alignmentPairs.length }} 组带轮对）</span>
+        </div>
+      </template>
+
+      <div class="result-table-wrapper">
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th style="width: 60px">序号</th>
+              <th>带轮对</th>
+              <th style="width: 140px">类型</th>
+              <th>切入角BEA (°)</th>
+              <th>Offset</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(pair, idx) in alignmentPairs" :key="idx">
+              <td style="color: #909399">{{ idx + 1 }}</td>
+              <td>
+                <span class="pair-codes">
+                  <span class="pulley-code">{{ pair.fromCode }}</span>
+                  <span class="pair-arrow">→</span>
+                  <span v-if="pair.middleCode" class="pulley-code pulley-code-flat">{{ pair.middleCode }}</span>
+                  <span v-if="pair.middleCode" class="pair-arrow">→</span>
+                  <span class="pulley-code">{{ pair.toCode }}</span>
+                </span>
+              </td>
+              <td>
+                <el-tag :type="pair.type === 'groove-groove' ? 'primary' : 'success'" size="small">
+                  {{ pair.type === 'groove-groove' ? '槽轮-槽轮' : '槽轮-平轮-槽轮' }}
+                </el-tag>
+              </td>
+              <td>{{ formatNum(pair.bea) }}</td>
+              <td>{{ pair.offset === null ? 'N/A' : formatNum(pair.offset) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </el-card>
+
+    <el-card v-else-if="pulleys.length > 0" shadow="hover" class="result-card result-empty">
+      <el-empty description="带轮数量不足或无法组成带轮对，请检查带轮类型（至少需要2个槽轮）" />
+    </el-card>
+
+    <!-- 调试信息 -->
+    <el-card v-if="pulleys.length > 0" shadow="hover" class="debug-card">
+      <template #header>
+        <div class="card-header">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <span>调试信息</span>
+        </div>
+      </template>
+
+      <div class="debug-section">
+        <div class="debug-title">Contact参数（每个带轮）</div>
+        <table class="debug-table">
+          <thead>
+            <tr>
+              <th>带轮</th>
+              <th>K</th>
+              <th>J</th>
+              <th>L</th>
+              <th>M</th>
+              <th>N</th>
+              <th>P</th>
+              <th>O</th>
+              <th>Q</th>
+              <th>U</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in debugPulleyList" :key="p.code">
+              <td>{{ p.code }}</td>
+              <td>{{ formatNum(p.K) }}</td>
+              <td>{{ formatNum(p.J) }}</td>
+              <td>{{ formatNum(p.L) }}</td>
+              <td>{{ formatNum(p.M) }}</td>
+              <td>{{ formatNum(p.N) }}</td>
+              <td>{{ formatNum(p.P) }}</td>
+              <td>{{ formatNum(p.O) }}</td>
+              <td>{{ formatNum(p.Q) }}</td>
+              <td>{{ formatNum(p.U) }}{{ p.UFromInput ? ' (输入)' : ' (计算)' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="debug-section">
+        <div class="debug-title">每个带轮的V/W/X/Y值</div>
+        <table class="debug-table">
+          <thead>
+            <tr>
+              <th>带轮</th>
+              <th>类型</th>
+              <th>中心高S</th>
+              <th>垂直度T</th>
+              <th>V</th>
+              <th>W</th>
+              <th>X</th>
+              <th>Y</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in debugVWList" :key="p.code">
+              <td>{{ p.code }}</td>
+              <td>{{ p.type === 'groove' ? '槽轮' : '平轮' }}</td>
+              <td>{{ formatNum(p.S) }}</td>
+              <td>{{ formatNum(p.T) }}</td>
+              <td>{{ formatNum(p.V) }}</td>
+              <td>{{ formatNum(p.W) }}</td>
+              <td>{{ formatNum(p.X) }}</td>
+              <td>{{ formatNum(p.Y) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="debug-section" v-if="alignmentPairs.length > 0">
+        <div class="debug-title">带轮对计算详情</div>
+        <div v-for="(pair, idx) in alignmentPairs" :key="idx" class="pair-debug">
+          <div class="pair-debug-title">
+            第{{ idx + 1 }}组：{{ pair.fromCode }} → {{ pair.middleCode || '' }} {{ pair.middleCode ? '→' : '' }} {{ pair.toCode }} ({{ pair.type === 'groove-groove' ? '槽轮-槽轮' : '槽轮-平轮-槽轮' }})
+          </div>
+          <div class="pair-debug-content">
+            <div>BEA: {{ formatNum(pair.bea) }}°</div>
+            <div>Twist: {{ formatNum(pair.twist) }}°</div>
+            <div>Offset: {{ pair.offset === null ? 'N/A' : formatNum(pair.offset) }}</div>
+          </div>
+          <div v-if="pair.debug" class="pair-debug-details">
+            <div class="debug-subtitle">详细计算过程：</div>
+            <table class="debug-table">
+              <thead>
+                <tr>
+                  <th>变量</th>
+                  <th>值</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, i) in pair.debug" :key="i">
+                  <td>{{ item.name }}</td>
+                  <td>{{ formatNum(item.value) }}</td>
+                  <td style="text-align: left">{{ item.desc }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import api from '../api/pulley.js'
+import { ref, computed, watchEffect, watch } from 'vue'
 import { sharedStore } from '../store/shared.js'
+import { calcAlignment as apiCalcAlignment } from '../api/pulley.js'
 
-const calculating = ref(false)
-const resultList = ref([])
+const pulleys = computed(() => sharedStore.pulleys)
+const contactParams = computed(() => sharedStore.contactParams)
 
-const formData = ref({
-  centerHeight: 0,
-  perpendicularity: 0
+watchEffect(() => {
+  sharedStore.pulleys.forEach(p => {
+    if (p.centerHeightDiff === undefined) p.centerHeightDiff = ''
+    if (p.perpendicularity === undefined) p.perpendicularity = ''
+    if (p.tiltAngle === undefined) p.tiltAngle = ''
+  })
 })
 
-const headerStyle = {
-  backgroundColor: '#f0f5ff',
-  color: '#1d2129',
-  fontWeight: '600',
-  textAlign: 'center',
-  fontSize: '13px',
-  padding: '10px 0'
+// 后端返回的计算结果
+const alignmentResult = ref({ per_pulley: [], pairs: [] })
+
+const alignmentPairs = computed(() => alignmentResult.value.pairs || [])
+const debugPulleyList = computed(() => alignmentResult.value.per_pulley || [])
+const debugVWList = computed(() => alignmentResult.value.per_pulley || [])
+
+function calcTwistDisplay(p) {
+  const item = alignmentResult.value.per_pulley?.find(item => item.code === p.code)
+  if (!item || item.twist == null) return '--'
+  return Number(item.twist).toFixed(4)
 }
 
-const cellStyle = {
-  padding: '8px 6px'
-}
-
-function formatNum(val) {
-  if (val === null || val === undefined || isNaN(val)) return '--'
-  return Number(val).toFixed(2)
-}
-
-function handleInputChange() {
-  // 输入变化时可以做实时预览（待公式确定后实现）
-}
-
-async function handleCalculate() {
-  if (sharedStore.pulleys.length < 2) {
-    ElMessage.warning('请先在轮系布局页面添加至少 2 个带轮')
+// 监听输入变化，调用后端API计算对齐度
+async function fetchAlignment() {
+  const list = sharedStore.pulleys
+  const cp = sharedStore.contactParams
+  if (list.length < 2 || Object.keys(cp).length === 0) {
+    alignmentResult.value = { per_pulley: [], pairs: [] }
     return
   }
 
-  calculating.value = true
   try {
-    const response = await api.calcAlignment({
-      pulleys: sharedStore.pulleys,
-      center_height: formData.value.centerHeight,
-      perpendicularity: formData.value.perpendicularity
+    const res = await apiCalcAlignment({
+      pulleys: list.map(p => ({
+        code: p.code,
+        name: p.name || '',
+        type: p.type,
+        centerHeightDiff: Number(p.centerHeightDiff) || 0,
+        perpendicularity: Number(p.perpendicularity) || 0,
+        tiltAngle: p.tiltAngle ?? '',
+      })),
+      contact_params: cp,
     })
-
-    if (response.data && response.data.results) {
-      resultList.value = response.data.results
-      sharedStore.alignmentResult = response.data.results
-      sharedStore.alignmentInput = {
-        centerHeight: formData.value.centerHeight,
-        perpendicularity: formData.value.perpendicularity
-      }
-      ElMessage.success(`计算完成，共 ${response.data.count} 对带轮`)
+    if (res.data.success) {
+      alignmentResult.value = res.data
     }
-  } catch (error) {
-    console.error('对齐度计算失败:', error)
-    ElMessage.error('计算失败，请检查输入参数')
-  } finally {
-    calculating.value = false
+  } catch (e) {
+    console.error('对齐度计算失败:', e)
   }
 }
 
-// 监听共享 store 中的带轮数据变化，清除旧的计算结果
 watch(
-  () => sharedStore.pulleys.length,
-  () => {
-    resultList.value = []
-  }
+  () => [
+    sharedStore.pulleys.map(p => ({ code: p.code, type: p.type, centerHeightDiff: p.centerHeightDiff, perpendicularity: p.perpendicularity, tiltAngle: p.tiltAngle })),
+    sharedStore.contactParams
+  ],
+  () => { fetchAlignment() },
+  { deep: true, immediate: true }
 )
+
+function formatNum(val) {
+  if (val === null || val === undefined || isNaN(val) || val === '') return '--'
+  return Number(val).toFixed(4)
+}
 </script>
 
 <style scoped>
@@ -408,94 +434,313 @@ watch(
   color: #409eff;
 }
 
-.count-tag {
-  margin-left: 8px;
+.card-tip {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 400;
+  margin-left: auto;
 }
 
 .input-card {
   margin-bottom: 20px;
 }
 
-.input-form {
-  margin-top: 8px;
+/* ===== 对齐度示意图卡片 ===== */
+.diagram-card {
+  margin-bottom: 20px;
 }
 
-.hint-text {
+.diagram-content {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.diagram-image-wrapper {
+  flex-shrink: 0;
+  width: 44%;
+  min-width: 360px;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  border: 1px solid #e4e7ed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alignment-diagram-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.diagram-desc {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.desc-section {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 14px 18px;
+  border: 1px solid #e8ecf1;
+}
+
+.desc-section:last-child {
+  margin-bottom: 0;
+}
+
+.desc-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #e8ecf1;
+}
+
+.desc-title svg {
+  width: 16px;
+  height: 16px;
+}
+
+.desc-text {
   font-size: 13px;
-  color: #86909c;
-  line-height: 1.6;
-  padding: 8px 12px;
-  background: #f7f8fa;
-  border-radius: 6px;
-  border-left: 3px solid #409eff;
+  color: #606266;
+  line-height: 1.8;
+  margin: 6px 0;
+}
+
+.desc-text strong {
+  color: #303133;
+  font-weight: 600;
+}
+
+.desc-list {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.desc-list li {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.9;
+  margin-bottom: 4px;
+}
+
+.desc-list li:last-child {
+  margin-bottom: 0;
+}
+
+.desc-list li strong {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
+/* 移动端适配 */
+@media (max-width: 900px) {
+  .diagram-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .diagram-image-wrapper {
+    width: 100%;
+    min-width: auto;
+    max-width: none;
+    padding: 16px;
+  }
+
+  .alignment-diagram-img {
+    max-height: 320px;
+  }
+}
+
+.pulley-table-wrapper {
+  overflow-x: auto;
+}
+
+.pulley-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.pulley-table th,
+.pulley-table td {
+  border: 1px solid #e4e7ed;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.pulley-table th {
+  background: #f5f7fa;
+  color: #606266;
+  font-weight: 600;
+  text-align: center;
+}
+
+.pulley-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* 表格内输入框文字居中 */
+.pulley-table :deep(.el-input__inner) {
+  text-align: center;
+}
+
+.pulley-code {
+  font-weight: 600;
+  color: #409eff;
+}
+
+.empty-tip {
+  padding: 40px 0;
 }
 
 .result-card {
   margin-top: 20px;
 }
 
-.table-wrapper {
+.result-empty {
+  padding: 20px 0;
+}
+
+.result-table-wrapper {
   overflow-x: auto;
 }
 
-.col-header {
-  font-weight: 600;
-  color: #1d2129;
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
 }
 
-.col-header-blue {
-  font-weight: 600;
-  color: #409eff;
+.result-table th,
+.result-table td {
+  border: 1px solid #e4e7ed;
+  padding: 10px 12px;
+  text-align: center;
 }
 
-.col-header-orange {
+.result-table th {
+  background: #f5f7fa;
+  color: #606266;
   font-weight: 600;
-  color: #ff7d00;
 }
 
-.col-header-orange-light {
-  font-weight: 600;
-  color: #ff9a2e;
+.result-table tbody tr:hover {
+  background: #f8fafc;
 }
 
-.pulley-pair {
-  display: flex;
+.pair-codes {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  font-size: 13px;
+  gap: 6px;
 }
 
-.pulley-code {
-  font-weight: 600;
-  color: #1d2129;
-  background: #e8f3ff;
-  padding: 2px 8px;
-  border-radius: 4px;
+.pair-arrow {
+  color: #c0c4cc;
+  font-size: 12px;
 }
 
-.arrow {
-  color: #409eff;
-  font-weight: 600;
+.pulley-code-flat {
+  color: #67c23a !important;
 }
 
-.bea-value {
-  font-weight: 600;
-  color: #ff7d00;
-}
-
-.na-text {
-  color: #c9cdd4;
-  font-size: 13px;
-}
-
-.empty-card {
+.debug-card {
   margin-top: 20px;
 }
 
-.empty-icon {
-  width: 64px;
-  height: 64px;
-  color: #c9cdd4;
+.debug-section {
+  margin-bottom: 20px;
+}
+
+.debug-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 10px;
+}
+
+.debug-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.debug-table th,
+.debug-table td {
+  border: 1px solid #e4e7ed;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.debug-table th {
+  background: #f0f5ff;
+  color: #606266;
+  font-weight: 600;
+}
+
+.debug-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.pair-debug {
+  background: #f5f7fa;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.pair-debug-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 8px;
+}
+
+.pair-debug-content {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: #606266;
+}
+
+.pair-debug-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #dcdfe6;
+}
+
+.debug-subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #67c23a;
+  margin-bottom: 8px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .pulley-table th,
+  .pulley-table td {
+    font-size: 12px;
+    padding: 8px 6px;
+  }
+
+  .result-table th,
+  .result-table td {
+    font-size: 12px;
+    padding: 8px 6px;
+  }
 }
 </style>

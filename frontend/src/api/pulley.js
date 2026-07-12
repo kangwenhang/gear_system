@@ -4,7 +4,7 @@ import axios from 'axios'
 // 创建 axios 实例
 const api = axios.create({
   baseURL: '/api',
-  timeout: 5000
+  timeout: 15000
 })
 
 // 获取带轮选项
@@ -22,9 +22,20 @@ export const calcPulleyDiagram = (data) => {
   return api.post('/calculate', data)
 }
 
-// 对齐度计算
+// 计算Contact参数
+export const calcContactParams = (data) => {
+  return api.post('/calc-contact-params', data)
+}
+
+// 计算对齐度
 export const calcAlignment = (data) => {
-  return api.post('/alignment/calculate', data)
+  return api.post('/calc-alignment', data)
+}
+
+// 张紧轮/枢轴坐标互转
+// 传 pivot_x/pivot_y 做正向（→张紧轮XY），传 pulley_x/pulley_y 做反向（→枢轴XY）
+export const calcTensionerCoord = (data) => {
+  return api.post('/calc-tensioner-coord', data)
 }
 
 // 集中导出（方便在页面中一次性引入）
@@ -32,5 +43,7 @@ export default {
   getBeltOptions,
   getManufacturerOptions,
   calcPulleyDiagram,
-  calcAlignment
+  calcContactParams,
+  calcAlignment,
+  calcTensionerCoord
 }

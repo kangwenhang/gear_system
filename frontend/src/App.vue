@@ -1,14 +1,15 @@
 <template>
-  <div class="app-container">
-    <div class="page-content" v-if="!showReport">
+  <div class="app-container" :class="{ 'report-mode': activeTab === 'report' }">
+    <!-- 页面内容 -->
+    <div class="page-content">
       <InputPage v-show="activeTab === 'layout'" />
       <LoadPage v-show="activeTab === 'load'" />
       <AlignmentPage v-show="activeTab === 'alignment'" />
+      <ReportPage v-show="activeTab === 'report'" @back="backFromReport" />
     </div>
 
-    <ReportPage v-else @back="showReport = false" />
-
-    <div class="step-nav no-print" v-if="!showReport">
+    <!-- 底部步骤导航（报告页隐藏） -->
+    <div class="step-nav no-print" v-show="activeTab !== 'report'">
       <div class="step-indicator">
         <div class="step-item">
           <span class="step-dot" :class="{ active: activeTab === 'layout' }">1</span>
@@ -45,16 +46,12 @@
         </el-button>
         <el-button
           v-else
-          type="success"
+          type="primary"
           size="large"
           @click="confirmCalculate"
         >
-          <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <path d="M9 15l2 2 4-4"/>
-          </svg>
-          生成报告
+          <svg style="width:16px;height:16px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          确认输入，进入计算
         </el-button>
       </div>
     </div>
@@ -62,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import InputPage from './views/InputPage.vue'
 import LoadPage from './views/LoadPage.vue'
@@ -72,11 +69,6 @@ import { sharedStore } from './store/shared.js'
 
 const steps = ['layout', 'load', 'alignment']
 const activeTab = ref('layout')
-
-const showReport = computed({
-  get: () => sharedStore.showReport,
-  set: (val) => { sharedStore.showReport = val }
-})
 
 const prevStep = () => {
   const idx = steps.indexOf(activeTab.value)
@@ -90,8 +82,11 @@ const nextStep = () => {
 
 const confirmCalculate = () => {
   sharedStore.calcTrigger++
-  sharedStore.showReport = true
-  ElMessage.success('报告已生成')
+  activeTab.value = 'report'
+}
+
+const backFromReport = () => {
+  activeTab.value = 'alignment'
 }
 </script>
 
@@ -109,13 +104,19 @@ body {
 .app-container {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 0 32px 120px;
+  padding: 0 32px 140px;
 }
 
+.app-container.report-mode {
+  padding: 0;
+}
+
+/* ===== 页面内容 ===== */
 .page-content {
   min-height: calc(100vh - 160px);
 }
 
+/* ===== 底部步骤导航 ===== */
 .step-nav {
   position: fixed;
   bottom: 0;
@@ -125,7 +126,7 @@ body {
   margin: 0 auto;
   background: #ffffff;
   border-top: 2px solid #e8ecf1;
-  padding: 20px 32px;
+  padding: 16px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -133,6 +134,7 @@ body {
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
 }
 
+/* 步骤指示器 */
 .step-indicator {
   display: flex;
   align-items: flex-start;
@@ -190,20 +192,52 @@ body {
   background: #409eff;
 }
 
+/* 按钮 */
 .step-buttons {
   display: flex;
   gap: 12px;
   flex-shrink: 0;
 }
 
-@media print {
-  .no-print {
-    display: none !important;
+/* ===== 移动端响应式 ===== */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0 16px 160px;
   }
 
-  .app-container {
-    padding: 0;
-    max-width: 100%;
+  .step-nav {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .step-indicator {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .step-dot {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .step-label {
+    font-size: 11px;
+  }
+
+  .step-line {
+    width: 32px;
+    margin: 11px 6px 0;
+  }
+
+  .step-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .step-buttons .el-button {
+    flex: 1;
   }
 }
 </style>
