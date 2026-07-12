@@ -64,6 +64,7 @@ case "$1" in
 
         echo -e "\033[36mStarting backend...\033[0m"
         nohup "$PYTHON" -m uvicorn app.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload > "$LOG_DIR/backend.log" 2>&1 &
+        disown
         BACKEND_PID=$!
 
         # ===== 前端 =====
@@ -81,6 +82,7 @@ case "$1" in
 
         echo -e "\033[36mStarting frontend...\033[0m"
         nohup npx vite --host 0.0.0.0 --port $FRONTEND_PORT > "$LOG_DIR/frontend.log" 2>&1 &
+        disown
         FRONTEND_PID=$!
 
         echo "$BACKEND_PID $FRONTEND_PID" > "$PID_FILE"
