@@ -358,9 +358,10 @@ const debugVWList = computed(() => alignmentResult.value.per_pulley || [])
 
 const forceDirections = computed(() => {
   const directions = {}
-  alignmentResult.value.per_pulley?.forEach(p => {
-    if (p.U != null && p.U !== undefined) {
-      directions[p.code] = p.U
+  const cp = sharedStore.contactParams
+  Object.keys(cp).forEach(code => {
+    if (cp[code].U != null && cp[code].U !== undefined) {
+      directions[code] = cp[code].U
     }
   })
   return directions
