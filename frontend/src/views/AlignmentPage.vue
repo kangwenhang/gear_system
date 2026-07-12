@@ -70,6 +70,30 @@
       </div>
     </el-card>
 
+    <!-- 轮系布局图（含受力方向） -->
+    <el-card shadow="hover" class="diagram-card">
+      <template #header>
+        <div class="card-header">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <circle cx="12" cy="12" r="8"/>
+            <line x1="12" y1="2" x2="12" y2="5"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+            <line x1="2" y1="12" x2="5" y2="12"/>
+            <line x1="19" y1="12" x2="22" y2="12"/>
+          </svg>
+          <span>轮系布局图</span>
+          <span class="card-tip">（红色箭头表示受力方向 U 值）</span>
+        </div>
+      </template>
+      <div v-if="pulleys.length > 0" class="pulley-diagram-wrapper">
+        <PulleyDiagram :data="pulleys" :forceDirections="forceDirections" />
+      </div>
+      <div v-else class="empty-tip">
+        <el-empty description="暂无带轮数据，请先在轮系布局页面添加带轮" />
+      </div>
+    </el-card>
+
     <!-- 带轮对齐度输入 -->
     <el-card shadow="hover" class="input-card">
       <template #header>
@@ -307,6 +331,7 @@
 import { ref, computed, watchEffect, watch } from 'vue'
 import { sharedStore } from '../store/shared.js'
 import { calcAlignment as apiCalcAlignment } from '../api/pulley.js'
+import PulleyDiagram from '../components/PulleyDiagram.vue'
 
 const pulleys = computed(() => sharedStore.pulleys)
 const contactParams = computed(() => sharedStore.contactParams)
@@ -325,6 +350,16 @@ const alignmentResult = ref({ per_pulley: [], pairs: [] })
 const alignmentPairs = computed(() => alignmentResult.value.pairs || [])
 const debugPulleyList = computed(() => alignmentResult.value.per_pulley || [])
 const debugVWList = computed(() => alignmentResult.value.per_pulley || [])
+
+const forceDirections = computed(() => {
+  const directions = {}
+  alignmentResult.value.per_pulley?.forEach(p => {
+    if (p.U != null && p.U !== undefined) {
+      directions[p.code] = p.U
+    }
+  })
+  return directions
+})
 
 function calcTwistDisplay(p) {
   const item = alignmentResult.value.per_pulley?.find(item => item.code === p.code)
@@ -448,6 +483,10 @@ function formatNum(val) {
 /* ===== 对齐度示意图卡片 ===== */
 .diagram-card {
   margin-bottom: 20px;
+}
+
+.pulley-diagram-wrapper {
+  padding: 10px;
 }
 
 .diagram-content {
