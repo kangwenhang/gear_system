@@ -543,13 +543,64 @@ const manualLine = computed(() => {
 
 // 10. 最终渲染数据
 const pulleys = computed(() => 
-  raw.value.map(p => ({
-    ...p,
-    cx: mapX(p.x),
-    cy: mapY(p.y),
-    r: p.r * scale.value
-  }))
+  raw.value.map(p => {
+    const cx = mapX(p.x)
+    const cy = mapY(p.y)
+    const r = p.r * scale.value
+    
+    const forceAngle = props.forceDirections?.[p.code]
+    let forceArrowEndX = 0
+    let forceArrowEndY = 0
+    let forceLabelX = 0
+    let forceLabelY = 0
+    
+    if (forceAngle != null) {
+      const arrowLength = r + 15
+      const rad = (forceAngle * Math.PI) / 180
+      forceArrowEndX = cx + arrowLength * Math.cos(rad)
+      forceArrowEndY = cy - arrowLength * Math.sin(rad)
+      
+      const labelOffset = arrowLength + 12
+      forceLabelX = cx + labelOffset * Math.cos(rad)
+      forceLabelY = cy - labelOffset * Math.sin(rad)
+    }
+    
+    return {
+      ...p,
+      cx,
+      cy,
+      r,
+      forceAngle,
+      forceArrowEndX,
+      forceArrowEndY,
+      forceLabelX,
+      forceLabelY
+    }
+  })
 )
+
+function forceArrowHeadPoints(p) {
+  const arrowSize = 8
+  const rad = (p.forceAngle * Math.PI) / 180
+  const dx = p.cx - p.forceArrowEndX
+  const dy = p.cy - p.forceArrowEndY
+  const len = Math.sqrt(dx * dx + dy * dy)
+  const nx = dx / len
+  const ny = dy / len
+  
+  const px = p.forceArrowEndX
+  const py = p.forceArrowEndY
+  
+  const angle1 = rad + Math.PI / 6
+  const angle2 = rad - Math.PI / 6
+  
+  const x1 = px + arrowSize * Math.cos(angle1)
+  const y1 = py - arrowSize * Math.sin(angle1)
+  const x2 = px + arrowSize * Math.cos(angle2)
+  const y2 = py - arrowSize * Math.sin(angle2)
+  
+  return `${x1},${y1} ${px},${py} ${x2},${y2}`
+}
 
 // 计算两个圆的公切线
 // 返回四条切线：[外切1, 外切2, 内切1, 内切2]
