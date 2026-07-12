@@ -581,9 +581,8 @@ const pulleys = computed(() =>
 
 function forceArrowHeadPoints(p) {
   const arrowSize = 8
-  const rad = ((p.forceAngle + 180) * Math.PI) / 180
-  const dx = p.cx - p.forceArrowEndX
-  const dy = p.cy - p.forceArrowEndY
+  const dx = p.forceArrowEndX - p.cx
+  const dy = p.forceArrowEndY - p.cy
   const len = Math.sqrt(dx * dx + dy * dy)
   const nx = dx / len
   const ny = dy / len
@@ -591,13 +590,13 @@ function forceArrowHeadPoints(p) {
   const px = p.forceArrowEndX
   const py = p.forceArrowEndY
   
-  const angle1 = rad + Math.PI / 6
-  const angle2 = rad - Math.PI / 6
+  const perpX = -ny
+  const perpY = nx
   
-  const x1 = px + arrowSize * Math.cos(angle1)
-  const y1 = py - arrowSize * Math.sin(angle1)
-  const x2 = px + arrowSize * Math.cos(angle2)
-  const y2 = py - arrowSize * Math.sin(angle2)
+  const x1 = px - arrowSize * nx + arrowSize * perpX * 0.5
+  const y1 = py - arrowSize * ny + arrowSize * perpY * 0.5
+  const x2 = px - arrowSize * nx - arrowSize * perpX * 0.5
+  const y2 = py - arrowSize * ny - arrowSize * perpY * 0.5
   
   return `${x1},${y1} ${px},${py} ${x2},${y2}`
 }
