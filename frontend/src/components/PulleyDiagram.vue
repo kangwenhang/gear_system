@@ -88,6 +88,33 @@
           stroke-width="2"
         />
         
+        <!-- 受力方向箭头（U值方向） -->
+        <g v-if="p.forceAngle != null" class="force-arrow">
+          <line
+            :x1="p.cx"
+            :y1="p.cy"
+            :x2="p.forceArrowEndX"
+            :y2="p.forceArrowEndY"
+            stroke="#ff4d4f"
+            stroke-width="2.5"
+            stroke-linecap="round"
+          />
+          <polygon
+            :points="forceArrowHeadPoints(p)"
+            fill="#ff4d4f"
+          />
+          <text
+            :x="p.forceLabelX"
+            :y="p.forceLabelY"
+            text-anchor="middle"
+            font-size="11"
+            font-weight="bold"
+            fill="#ff4d4f"
+          >
+            U={{ p.forceAngle.toFixed(1) }}°
+          </text>
+        </g>
+        
         <!-- 轮子名称（放在圆心） -->
         <text 
           :x="p.cx" 
@@ -216,7 +243,8 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({ 
   data: Array,
-  tensionerData: Object
+  tensionerData: Object,
+  forceDirections: Object
 })
 
 const wrapRef = ref(null)
