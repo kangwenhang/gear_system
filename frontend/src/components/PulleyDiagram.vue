@@ -581,7 +581,7 @@ const pulleys = computed(() =>
 
 function forceArrowHeadPoints(p) {
   const arrowSize = 8
-  const rad = (p.forceAngle * Math.PI) / 180
+  const rad = ((p.forceAngle + 180) * Math.PI) / 180
   const dx = p.cx - p.forceArrowEndX
   const dy = p.cy - p.forceArrowEndY
   const len = Math.sqrt(dx * dx + dy * dy)
