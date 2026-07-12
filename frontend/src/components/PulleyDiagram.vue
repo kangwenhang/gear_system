@@ -111,7 +111,7 @@
             font-weight="bold"
             fill="#ff4d4f"
           >
-            U={{ p.forceAngle.toFixed(1) }}°
+            U={{ ((p.forceAngle + 180) % 360).toFixed(1) }}°
           </text>
         </g>
         
