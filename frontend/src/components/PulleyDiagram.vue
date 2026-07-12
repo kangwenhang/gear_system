@@ -88,6 +88,23 @@
           stroke-width="2"
         />
         
+        <!-- 受力方向箭头（U值方向） -->
+        <g v-if="p.forceAngle != null" class="force-arrow">
+          <line
+            :x1="p.cx"
+            :y1="p.cy"
+            :x2="p.forceArrowEndX"
+            :y2="p.forceArrowEndY"
+            stroke="#ff4d4f"
+            stroke-width="2.5"
+            stroke-linecap="round"
+          />
+          <polygon
+            :points="forceArrowHeadPoints(p)"
+            fill="#ff4d4f"
+          />
+        </g>
+        
         <!-- 轮子名称（放在圆心） -->
         <text 
           :x="p.cx" 
@@ -216,7 +233,8 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({ 
   data: Array,
-  tensionerData: Object
+  tensionerData: Object,
+  forceDirections: Object
 })
 
 const wrapRef = ref(null)
@@ -515,13 +533,63 @@ const manualLine = computed(() => {
 
 // 10. 最终渲染数据
 const pulleys = computed(() => 
-  raw.value.map(p => ({
-    ...p,
-    cx: mapX(p.x),
-    cy: mapY(p.y),
-    r: p.r * scale.value
-  }))
+  raw.value.map(p => {
+    const cx = mapX(p.x)
+    const cy = mapY(p.y)
+    const r = p.r * scale.value
+    
+    const forceAngle = props.forceDirections?.[p.code]
+    let forceArrowEndX = 0
+    let forceArrowEndY = 0
+    let forceLabelX = 0
+    let forceLabelY = 0
+    
+    if (forceAngle != null) {
+      const arrowLength = r + 15
+      const rad = ((forceAngle + 180) * Math.PI) / 180
+      forceArrowEndX = cx - arrowLength * Math.cos(rad)
+      forceArrowEndY = cy + arrowLength * Math.sin(rad)
+      
+      const labelOffset = arrowLength + 12
+      forceLabelX = cx - labelOffset * Math.cos(rad)
+      forceLabelY = cy + labelOffset * Math.sin(rad)
+    }
+    
+    return {
+      ...p,
+      cx,
+      cy,
+      r,
+      forceAngle,
+      forceArrowEndX,
+      forceArrowEndY,
+      forceLabelX,
+      forceLabelY
+    }
+  })
 )
+
+function forceArrowHeadPoints(p) {
+  const arrowSize = 8
+  const dx = p.forceArrowEndX - p.cx
+  const dy = p.forceArrowEndY - p.cy
+  const len = Math.sqrt(dx * dx + dy * dy)
+  const nx = dx / len
+  const ny = dy / len
+  
+  const px = p.forceArrowEndX
+  const py = p.forceArrowEndY
+  
+  const perpX = ny
+  const perpY = -nx
+  
+  const x1 = px - arrowSize * nx + arrowSize * perpX * 0.5
+  const y1 = py - arrowSize * ny + arrowSize * perpY * 0.5
+  const x2 = px - arrowSize * nx - arrowSize * perpX * 0.5
+  const y2 = py - arrowSize * ny - arrowSize * perpY * 0.5
+  
+  return `${x1},${y1} ${px},${py} ${x2},${y2}`
+}
 
 // 计算两个圆的公切线
 // 返回四条切线：[外切1, 外切2, 内切1, 内切2]
