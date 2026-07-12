@@ -15,6 +15,33 @@
       <button type="button" @click="zoomOut" :disabled="zoom <= minZoom">-</button>
       <button type="button" @click="resetZoom">重置</button>
     </div>
+    
+    <div 
+      v-if="hoveredPulley" 
+      class="tooltip"
+      :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }"
+    >
+      <div class="tooltip-header">{{ hoveredPulley.name }} ({{ hoveredPulley.code }})</div>
+      <div class="tooltip-body">
+        <div class="tooltip-item">
+          <span class="tooltip-label">速比:</span>
+          <span class="tooltip-value">{{ formatRatio(hoveredPulley) }}</span>
+        </div>
+        <div class="tooltip-item">
+          <span class="tooltip-label">包角:</span>
+          <span class="tooltip-value">{{ formatWrapAngle(hoveredPulley) }}</span>
+        </div>
+        <div class="tooltip-item">
+          <span class="tooltip-label">Hubload角:</span>
+          <span class="tooltip-value">{{ formatHubloadAngle(hoveredPulley) }}</span>
+        </div>
+        <div class="tooltip-item">
+          <span class="tooltip-label">直径:</span>
+          <span class="tooltip-value">{{ formatDia(hoveredPulley) }} mm</span>
+        </div>
+      </div>
+    </div>
+    
     <svg class="diagram" :viewBox="viewBoxStr" preserveAspectRatio="xMidYMid meet">
       <!-- 定义裁剪路径，限制网格线在坐标轴内部 -->
       <defs>
@@ -86,6 +113,9 @@
           :fill="p.type==='flat'?'#e6f7ff':'#fff7e6'" 
           :stroke="p.type==='flat'?'#1890ff':'#fa8c16'" 
           stroke-width="2"
+          class="pulley-circle"
+          @mouseenter="onPulleyHover(p, $event)"
+          @mouseleave="onPulleyLeave"
         />
         
         <!-- 受力方向箭头（U值方向） -->
@@ -105,27 +135,17 @@
           />
         </g>
         
-        <!-- 轮子名称（放在圆心） -->
+        <!-- 轮子编号（放在圆心） -->
         <text 
           :x="p.cx" 
-          :y="p.cy - 5" 
+          :y="p.cy" 
           text-anchor="middle" 
-          font-size="12" 
+          dominant-baseline="middle"
+          font-size="16" 
           font-weight="bold"
           fill="#333"
         >
-          {{ p.name }}
-        </text>
-        
-        <!-- 轮子直径（放在圆心下方） -->
-        <text 
-          :x="p.cx" 
-          :y="p.cy + 15" 
-          text-anchor="middle" 
-          font-size="10" 
-          fill="#666"
-        >
-          Ø{{ p.dia.toFixed(1) }}
+          {{ p.code }}
         </text>
       </g>
 
@@ -234,7 +254,9 @@ import { computed, ref } from 'vue'
 const props = defineProps({ 
   data: Array,
   tensionerData: Object,
-  forceDirections: Object
+  forceDirections: Object,
+  beltParams: Object,
+  contactParams: Object
 })
 
 const wrapRef = ref(null)
@@ -251,6 +273,11 @@ const panStartX = ref(0)
 const panStartY = ref(0)
 const panStartPanX = ref(0)
 const panStartPanY = ref(0)
+
+// hover 状态
+const hoveredPulley = ref(null)
+const tooltipX = ref(0)
+const tooltipY = ref(0)
 
 // viewBox 字符串：通过缩放和平移控制可视区域
 const viewBoxStr = computed(() => {
@@ -773,6 +800,65 @@ const formatMM = (px, axis) => {
     return Math.round(value / step) * step
   }
 }
+
+// hover 相关方法
+function onPulleyHover(pulley, event) {
+  hoveredPulley.value = pulley
+  tooltipX.value = event.clientX - wrapRef.value.getBoundingClientRect().left + 15
+  tooltipY.value = event.clientY - wrapRef.value.getBoundingClientRect().top + 15
+}
+
+function onPulleyLeave() {
+  hoveredPulley.value = null
+}
+
+// 格式化函数
+function formatRatio(pulley) {
+  const data = props.data || []
+  if (data.length === 0) return '--'
+  
+  const ftp = props.beltParams?.flat_to_pitch || 0
+  const pte = props.beltParams?.pitch_to_effective || 0
+  
+  const firstPulley = data[0]
+  let refEffDia = null
+  if (firstPulley.type === 'groove') {
+    if (firstPulley.groove_dia != null && pte != null) refEffDia = firstPulley.groove_dia + 2 * pte
+  } else {
+    if (firstPulley.flat_dia != null && ftp != null) refEffDia = firstPulley.flat_dia + 2 * ftp
+  }
+  
+  if (refEffDia == null) return '--'
+  
+  let pulleyEffDia = null
+  if (pulley.type === 'groove') {
+    if (pulley.groove_dia != null && pte != null) pulleyEffDia = pulley.groove_dia + 2 * pte
+  } else {
+    if (pulley.flat_dia != null && ftp != null) pulleyEffDia = pulley.flat_dia + 2 * ftp
+  }
+  
+  if (pulleyEffDia == null || pulleyEffDia <= 0) return '--'
+  
+  return (refEffDia / pulleyEffDia).toFixed(4)
+}
+
+function formatWrapAngle(pulley) {
+  const cp = props.contactParams?.[pulley.code] || {}
+  const Q = cp.Q
+  if (Q == null) return '--'
+  return Number(Q).toFixed(2) + '°'
+}
+
+function formatHubloadAngle(pulley) {
+  const cp = props.contactParams?.[pulley.code] || {}
+  const U = cp.U
+  if (U == null) return '--'
+  return (Number(U) + 360).toFixed(2) + '°'
+}
+
+function formatDia(pulley) {
+  return pulley.dia?.toFixed(2) || '--'
+}
 </script>
 
 <style scoped>
@@ -857,5 +943,55 @@ svg.diagram {
 
 .tensioner-arm line {
   pointer-events: none;
+}
+
+.pulley-circle {
+  cursor: pointer;
+  transition: fill 0.2s ease, stroke-width 0.2s ease;
+}
+
+.pulley-circle:hover {
+  stroke-width: 4;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 0;
+  min-width: 160px;
+}
+
+.tooltip-header {
+  padding: 8px 12px;
+  background: #409eff;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px 8px 0 0;
+}
+
+.tooltip-body {
+  padding: 8px 12px;
+}
+
+.tooltip-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.tooltip-label {
+  color: #606266;
+}
+
+.tooltip-value {
+  color: #303133;
+  font-weight: 500;
 }
 </style>
