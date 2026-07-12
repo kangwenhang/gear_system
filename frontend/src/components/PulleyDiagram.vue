@@ -556,7 +556,7 @@ const pulleys = computed(() =>
     
     if (forceAngle != null) {
       const arrowLength = r + 15
-      const rad = (forceAngle * Math.PI) / 180
+      const rad = ((forceAngle + 180) * Math.PI) / 180
       forceArrowEndX = cx + arrowLength * Math.cos(rad)
       forceArrowEndY = cy - arrowLength * Math.sin(rad)
       
