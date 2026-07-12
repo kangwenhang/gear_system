@@ -87,7 +87,12 @@
         </div>
       </template>
       <div v-if="pulleys.length > 0" class="pulley-diagram-wrapper">
-        <PulleyDiagram :data="pulleys" :forceDirections="forceDirections" />
+        <PulleyDiagram 
+          :data="pulleys" 
+          :forceDirections="forceDirections"
+          :beltParams="sharedStore.beltParams"
+          :contactParams="sharedStore.contactParams"
+        />
       </div>
       <div v-else class="empty-tip">
         <el-empty description="暂无带轮数据，请先在轮系布局页面添加带轮" />

@@ -311,7 +311,12 @@
               <span>轮系示意图</span>
             </div>
           </template>
-          <PulleyDiagram :data="tableData" :tensionerData="tensioner" />
+          <PulleyDiagram 
+            :data="tableData" 
+            :tensionerData="tensioner"
+            :beltParams="sharedStore.beltParams"
+            :contactParams="sharedStore.contactParams"
+          />
         </el-card>
       </div>
     </div>
