@@ -4,11 +4,14 @@
 
 ## 功能特性
 
-- **轮系布局设计**：可视化添加、编辑带轮参数，支持槽轮和平轮
-- **皮带选型**：多种皮带型号支持，自动计算有效长度
-- **接触参数计算**：包角、切点坐标、皮带张力等参数计算
-- **对齐度分析**：轮系对齐度计算与可视化，显示受力方向
+- **轮系布局设计**：可视化添加、编辑带轮参数，支持槽轮(Grooved)和平轮(Flat)
+- **皮带选型**：多种皮带型号(CR/EPDM)支持，自动计算有效长度
+- **几何计算**：节圆直径、切点角、包角、包角平分线等参数计算
+- **张紧器计算**：支持自动/手调张紧轮，枢轴坐标与臂长角度双向反推
+- **张力/扭矩换算**：力臂计算、合力(Hubload)计算、扭矩与张力互转
+- **对齐度分析**：Contact参数(K/J/L/M/N/P/O/Q/U)、BEA/Twist/Offset计算
 - **振动分析**：振动频率与稳定性分析
+- **调试信息**：实时显示张紧轮几何参数、力值换算过程
 - **报告生成**：导出设计报告
 
 ## 技术栈
@@ -85,13 +88,13 @@ gear_system/
 ├── backend/                    # 后端服务
 │   ├── app/
 │   │   ├── api/               # API 路由
-│   │   │   ├── alignment.py   # 对齐度计算接口
+│   │   │   ├── alignment.py   # 对齐度计算 (Contact参数/BEA/Twist/Offset)
 │   │   │   ├── belts.py       # 皮带管理接口
 │   │   │   └── calculate.py   # 通用计算接口
 │   │   ├── services/          # 业务逻辑服务
 │   │   │   ├── alignment.py   # 对齐度计算逻辑
-│   │   │   ├── analysis.py    # 振动分析
-│   │   │   ├── gear_base.py   # 基础轮系计算
+│   │   │   ├── analysis.py    # 受力分析 (功率分配/圆周力/带段拉力)
+│   │   │   ├── gear_base.py   # 基础轮系计算 (节圆/切点/包角)
 │   │   │   ├── report.py      # 报告生成
 │   │   │   └── vibration.py   # 振动分析
 │   │   ├── data/              # 数据文件（CSV/JSON）
@@ -103,15 +106,18 @@ gear_system/
 ├── frontend/                  # 前端应用
 │   ├── src/
 │   │   ├── components/        # 公共组件
-│   │   │   └── PulleyDiagram.vue  # 轮系布局图
+│   │   │   └── PulleyDiagram.vue  # 轮系布局图 (SVG渲染/悬停tooltip)
 │   │   ├── views/             # 页面组件
 │   │   │   ├── AlignmentPage.vue  # 对齐度页面
-│   │   │   ├── InputPage.vue      # 参数输入页面
+│   │   │   ├── InputPage.vue      # 参数输入页面 (几何/张紧器/皮带/调试)
 │   │   │   └── ResultPage.vue     # 结果页面
 │   │   ├── api/               # API 调用封装
-│   │   └── store/             # 状态管理
+│   │   │   └── pulley.js      # 前后端计算接口
+│   │   └── store/             # 状态管理 (Vuex/Pinia)
+│   │       └── shared.js      # 共享数据 (带轮/皮带参数/Contact结果)
 │   └── package.json           # Node.js 依赖
 ├── .github/workflows/         # CI/CD 配置
+├── 轮系计算公式手册.md          # 公式与代码映射文档
 ├── README.md
 └── start.sh                   # 启动脚本
 ```
