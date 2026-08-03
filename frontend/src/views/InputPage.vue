@@ -1011,7 +1011,9 @@ function calcTangentAngles(pulleys) {
       E = -E
     }
 
-    const I = G + E
+    let I = G + E
+    while (I < 0) I += 360
+    while (I >= 360) I -= 360
     cumulativeAngles[i] = I
     exitAngles[i] = G
   }
