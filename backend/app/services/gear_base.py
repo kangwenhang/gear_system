@@ -18,16 +18,18 @@ class GearBaseService:
 
     def calc_pitch_diameter(self, pulley: Dict) -> float:
         """
-        计算节圆直径 K
-        - 槽轮(Grooved): K = Input!G (groove_dia)
-        - 平轮(Flat): K = G + 2×(带厚 + 衬厚) = flat_dia + 2×(belt_thickness + lining_thickness)
+        计算节圆直径 K（对应 Excel Geometry!K167 公式）
+        - 槽轮(Grooved): K = groove_dia - 4.6
+        - 平轮(Flat):    K = flat_dia + 4.6
+
+        注：4.6 为 Excel 中硬编码的固定偏移量（Geometry!K167: =IF(M167="Flat",K59+4.6,K59-4.6)）
         """
         p_type = pulley.get('type', 'groove')
         if p_type == 'flat':
             flat_dia = float(pulley.get('flat_dia') or 0)
-            return flat_dia + 2 * (self.belt_thickness + self.lining_thickness)
+            return flat_dia + 4.6
         else:
-            return float(pulley.get('groove_dia') or 0)
+            return float(pulley.get('groove_dia') or 0) - 4.6
 
     def calc_center_distance(self, curr: Dict, next_p: Dict) -> float:
         """计算两带轮中心距 C = sqrt((x2-x1)² + (y2-y1)²)"""
