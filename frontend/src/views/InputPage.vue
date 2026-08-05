@@ -1144,7 +1144,7 @@
             <tr>
               <td>理论皮带长度</td>
               <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(installPositionResult.theoretical_belt_length) }} mm</td>
-              <td>Input!G56 理论皮带长度（安装困难判断基准）</td>
+              <td>=IF(C41="Automatic", G26, G47)；自动张紧器用工作位置(G26)，手动张紧器用名义位置(G47)</td>
             </tr>
             <tr>
               <td>所需旋转角度</td>
@@ -2019,7 +2019,10 @@ async function calcFreePosition() {
 
 // 计算张紧器安装位置的皮带长度和张紧轮XY坐标 - 调用后端API
 // 安装位置 = 自由位置 + 总行程(stroke)度（朝工作方向继续旋转），并判断安装是否困难
-// 安装困难判断：安装位置皮带长度 < 理论皮带长度(Input!G56) → 可安装；>= 理论皮带长度 → 困难
+// 安装困难判断：安装位置皮带长度 < 理论皮带长度 → 可安装；>= 理论皮带长度 → 困难
+// 理论皮带长度公式：=IF(C$41="Automatic", Input!G26, Input!G47)
+//   - 自动张紧器(G26)：使用工作位置张紧轮XY计算的皮带总长
+//   - 手动张紧器(G47)：使用手动张紧器名义位置(nominal_x/nominal_y)计算的皮带总长
 async function calcInstallPosition() {
   const list = sharedStore.pulleys.filter(p => p.code && p.x != null && p.y != null)
   const empty = {
@@ -2045,8 +2048,41 @@ async function calcInstallPosition() {
   const stroke = Number(tensioner.value.automatic.stroke) || 0
   const rotation = tensioner.value.automatic.rotation || 'cw'
   const nominalAngle = Number(tensioner.value.automatic.nominal_angle) || 0
-  // 理论皮带长度（Input!G56）用于判断安装困难
-  const theoreticalBeltLen = sharedStore.beltLengthResult.belt_length
+
+  // 理论皮带长度：=IF(C$41="Automatic", Input!G26, Input!G47)
+  // 自动张紧器 → G26（工作位置皮带总长）
+  // 手动张紧器 → G47（名义位置皮带总长，需用手动张紧器名义位置重新计算）
+  let theoreticalBeltLen = sharedStore.beltLengthResult.belt_length
+  if (tensioner.value.type === 'manual') {
+    // 手动张紧器：用名义位置替换张紧轮坐标，重新计算皮带长度(G47)
+    const nominalX = tensioner.value.manual.nominal_x
+    const nominalY = tensioner.value.manual.nominal_y
+    if (nominalX != null && nominalY != null) {
+      try {
+        const manualList = list.map(p => {
+          if (p.code === tensionerCode) {
+            return { ...p, x: Number(nominalX), y: Number(nominalY) }
+          }
+          return p
+        })
+        const res = await apiCalcBeltLength({
+          pulleys: manualList.map(p => ({
+            code: p.code, name: p.name || '', type: p.type,
+            x: Number(p.x) || 0, y: Number(p.y) || 0,
+            groove_dia: p.groove_dia != null ? Number(p.groove_dia) : null,
+            flat_dia: p.flat_dia != null ? Number(p.flat_dia) : null,
+          })),
+          belt_thickness: Number(beltParams.value.flat_to_pitch) || 0,
+          lining_thickness: Number(beltParams.value.pitch_to_effective) || 0,
+        })
+        if (res.data.success) {
+          theoreticalBeltLen = res.data.belt_length
+        }
+      } catch (e) {
+        console.error('手动张紧器理论皮带长度(G47)计算失败:', e)
+      }
+    }
+  }
 
   try {
     const res = await apiCalcInstallPosition({
