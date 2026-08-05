@@ -28,6 +28,29 @@ class BeltLengthRequest(BaseModel):
     belt_thickness: Optional[float] = 1.2    # Input!H21 带厚
     lining_thickness: Optional[float] = 1.0  # Input!H22 衬厚
 
+
+class TensionerPositionRequest(BaseModel):
+    """张紧轮坐标计算请求（基于短/长皮带长度）"""
+    pulleys: List[PulleyItem]
+    target_length: float
+    tensioner_code: str = 'TEN'
+    pivot_x: Optional[float] = None
+    pivot_y: Optional[float] = None
+    belt_thickness: Optional[float] = 1.2
+    lining_thickness: Optional[float] = 1.0
+
+
+class FreePositionRequest(BaseModel):
+    """张紧器自由位置计算请求"""
+    pulleys: List[PulleyItem]
+    tensioner_code: str = 'TEN'
+    pivot_x: Optional[float] = None
+    pivot_y: Optional[float] = None
+    nominal_angle: float = 25.0      # 名义扭转角
+    rotation: str = 'cw'             # 旋转方向 cw/ccw
+    belt_thickness: Optional[float] = 1.2
+    lining_thickness: Optional[float] = 1.0
+
 @router.post("/calculate")
 def calculate(req: CalculateRequest):
     try:
@@ -79,5 +102,68 @@ def calc_belt_length(req: BeltLengthRequest):
         pulleys_data = [p.model_dump() for p in req.pulleys]
         result = service.calc_belt_length(pulleys_data)
         return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calc-tensioner-position")
+def calc_tensioner_position(req: TensionerPositionRequest):
+    """
+    计算短/长皮带长度对应的张紧轮XY坐标。
+    张紧轮沿臂弧（以枢轴为圆心）搜索，使皮带长度 = 目标长度。
+    """
+    try:
+        if req.pivot_x is None or req.pivot_y is None:
+            raise HTTPException(status_code=400, detail="缺少枢轴坐标 pivot_x/pivot_y")
+        service = GearBaseService(
+            belt_thickness=req.belt_thickness,
+            lining_thickness=req.lining_thickness
+        )
+        pulleys_data = [p.model_dump() for p in req.pulleys]
+        result = service.calc_tensioner_position(
+            pulleys=pulleys_data,
+            target_length=req.target_length,
+            tensioner_code=req.tensioner_code,
+            pivot_x=req.pivot_x,
+            pivot_y=req.pivot_y
+        )
+        if 'error' in result:
+            raise HTTPException(status_code=400, detail=result['error'])
+        return {"success": True, **result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calc-free-position")
+def calc_free_position(req: FreePositionRequest):
+    """
+    计算张紧器自由位置的皮带长度和张紧轮XY坐标。
+
+    张紧器从自由位置旋转名义扭转角(nominal_angle)到达工作位置。
+    旋转方向(cw/ccw)决定角度变化方向。
+    """
+    try:
+        if req.pivot_x is None or req.pivot_y is None:
+            raise HTTPException(status_code=400, detail="缺少枢轴坐标 pivot_x/pivot_y")
+        service = GearBaseService(
+            belt_thickness=req.belt_thickness,
+            lining_thickness=req.lining_thickness
+        )
+        pulleys_data = [p.model_dump() for p in req.pulleys]
+        result = service.calc_free_position(
+            pulleys=pulleys_data,
+            tensioner_code=req.tensioner_code,
+            pivot_x=req.pivot_x,
+            pivot_y=req.pivot_y,
+            nominal_angle=req.nominal_angle,
+            rotation=req.rotation
+        )
+        if 'error' in result:
+            raise HTTPException(status_code=400, detail=result['error'])
+        return {"success": True, **result}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

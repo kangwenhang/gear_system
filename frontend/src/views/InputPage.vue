@@ -941,6 +941,158 @@
           </tbody>
         </table>
       </div>
+
+      <!-- 短皮带长度 & 张紧轮XY坐标 -->
+      <div class="debug-section" v-if="shortBeltLength != null">
+        <div class="debug-title">短皮带长度 &amp; 张紧轮XY坐标（总长 - 公差）</div>
+        <table class="debug-table">
+          <thead>
+            <tr><th>参数</th><th>值</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>短皮带长度</td>
+              <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(shortBeltLength) }} mm</td>
+              <td>皮带总长 - 皮带公差</td>
+            </tr>
+            <tr>
+              <td>张紧轮 X</td>
+              <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(shortBeltResult.tensioner_x) }}</td>
+              <td>短皮带对应张紧轮X坐标</td>
+            </tr>
+            <tr>
+              <td>张紧轮 Y</td>
+              <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(shortBeltResult.tensioner_y) }}</td>
+              <td>短皮带对应张紧轮Y坐标</td>
+            </tr>
+            <tr>
+              <td>张紧轮臂角度</td>
+              <td>{{ formatDebugNum(shortBeltResult.tensioner_angle) }}°</td>
+              <td>相对枢轴的臂角度（0-360°）</td>
+            </tr>
+            <tr>
+              <td>臂长</td>
+              <td>{{ formatDebugNum(shortBeltResult.arm_length) }} mm</td>
+              <td>枢轴到张紧轮距离</td>
+            </tr>
+            <tr>
+              <td>达成皮带长度</td>
+              <td>{{ formatDebugNum(shortBeltResult.achieved_length) }} mm</td>
+              <td>求解器实际达到的长度</td>
+            </tr>
+            <tr>
+              <td>迭代次数 / 收敛</td>
+              <td>{{ shortBeltResult.iterations }} /
+                <span v-if="shortBeltResult.converged" style="color: #67c23a">已收敛</span>
+                <span v-else style="color: #f56c6c">未收敛</span>
+              </td>
+              <td>牛顿法迭代次数与收敛状态</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 长皮带长度 & 张紧轮XY坐标 -->
+      <div class="debug-section" v-if="longBeltLength != null">
+        <div class="debug-title">长皮带长度 &amp; 张紧轮XY坐标（总长 + 公差）</div>
+        <table class="debug-table">
+          <thead>
+            <tr><th>参数</th><th>值</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>长皮带长度</td>
+              <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(longBeltLength) }} mm</td>
+              <td>皮带总长 + 皮带公差</td>
+            </tr>
+            <tr>
+              <td>张紧轮 X</td>
+              <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(longBeltResult.tensioner_x) }}</td>
+              <td>长皮带对应张紧轮X坐标</td>
+            </tr>
+            <tr>
+              <td>张紧轮 Y</td>
+              <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(longBeltResult.tensioner_y) }}</td>
+              <td>长皮带对应张紧轮Y坐标</td>
+            </tr>
+            <tr>
+              <td>张紧轮臂角度</td>
+              <td>{{ formatDebugNum(longBeltResult.tensioner_angle) }}°</td>
+              <td>相对枢轴的臂角度（0-360°）</td>
+            </tr>
+            <tr>
+              <td>臂长</td>
+              <td>{{ formatDebugNum(longBeltResult.arm_length) }} mm</td>
+              <td>枢轴到张紧轮距离</td>
+            </tr>
+            <tr>
+              <td>达成皮带长度</td>
+              <td>{{ formatDebugNum(longBeltResult.achieved_length) }} mm</td>
+              <td>求解器实际达到的长度</td>
+            </tr>
+            <tr>
+              <td>迭代次数 / 收敛</td>
+              <td>{{ longBeltResult.iterations }} /
+                <span v-if="longBeltResult.converged" style="color: #67c23a">已收敛</span>
+                <span v-else style="color: #f56c6c">未收敛</span>
+              </td>
+              <td>牛顿法迭代次数与收敛状态</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 张紧器自由位置 -->
+      <div class="debug-section" v-if="freePositionResult.free_belt_length != null">
+        <div class="debug-title">张紧器自由位置（名义扭转角 {{ formatDebugNum(freePositionResult.nominal_angle) }}°，{{ freePositionResult.rotation === 'cw' ? '顺时针' : '逆时针' }}）</div>
+        <table class="debug-table">
+          <thead>
+            <tr><th>参数</th><th>值</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>自由位置皮带长度</td>
+              <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(freePositionResult.free_belt_length) }} mm</td>
+              <td>张紧器在自由位置时的皮带长度</td>
+            </tr>
+            <tr>
+              <td>自由位置张紧轮 X</td>
+              <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(freePositionResult.free_tensioner_x) }}</td>
+              <td>自由位置张紧轮X坐标</td>
+            </tr>
+            <tr>
+              <td>自由位置张紧轮 Y</td>
+              <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(freePositionResult.free_tensioner_y) }}</td>
+              <td>自由位置张紧轮Y坐标</td>
+            </tr>
+            <tr>
+              <td>自由角度</td>
+              <td>{{ formatDebugNum(freePositionResult.free_angle) }}°</td>
+              <td>自由位置臂角度（0-360°）</td>
+            </tr>
+            <tr>
+              <td>工作角度</td>
+              <td>{{ formatDebugNum(freePositionResult.work_angle) }}°</td>
+              <td>当前工作位置臂角度（0-360°）</td>
+            </tr>
+            <tr>
+              <td>臂长</td>
+              <td>{{ formatDebugNum(freePositionResult.arm_length) }} mm</td>
+              <td>枢轴到张紧轮距离</td>
+            </tr>
+            <tr>
+              <td>名义扭转角</td>
+              <td>{{ formatDebugNum(freePositionResult.nominal_angle) }}°</td>
+              <td>自由位置到工作位置的旋转角度</td>
+            </tr>
+            <tr>
+              <td>旋转方向</td>
+              <td>{{ freePositionResult.rotation === 'cw' ? '顺时针 (cw)' : '逆时针 (ccw)' }}</td>
+              <td>张紧器从自由位置到工作位置的旋转方向</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </el-card>
 
   </div>
@@ -956,6 +1108,8 @@ import api from '../api/pulley.js'
 import { calcContactParams as apiCalcContactParams } from '../api/pulley.js'
 import { calcTensionerCoord as apiCalcTensionerCoord } from '../api/pulley.js'
 import { calcBeltLength as apiCalcBeltLength } from '../api/pulley.js'
+import { calcTensionerPosition as apiCalcTensionerPosition } from '../api/pulley.js'
+import { calcFreePosition as apiCalcFreePosition } from '../api/pulley.js'
 import { sharedStore } from '../store/shared.js'
 
 const formInfo = ref({
@@ -1167,6 +1321,31 @@ const tensionerGeometry = computed(() => {
 
 // 皮带长度计算结果
 const beltLengthResult = computed(() => sharedStore.beltLengthResult || {})
+
+// 短皮带长度计算结果（短皮带 = 总长 - 公差）
+const shortBeltResult = computed(() => sharedStore.shortBeltResult || {})
+
+// 长皮带长度计算结果（长皮带 = 总长 + 公差）
+const longBeltResult = computed(() => sharedStore.longBeltResult || {})
+
+// 张紧器自由位置计算结果
+const freePositionResult = computed(() => sharedStore.freePositionResult || {})
+
+// 短皮带长度（计算值，用于显示）
+const shortBeltLength = computed(() => {
+  const total = beltLengthResult.value.belt_length
+  if (total == null) return null
+  const tol = Number(beltParams.value.length_tolerance) || 0
+  return total - tol
+})
+
+// 长皮带长度（计算值，用于显示）
+const longBeltLength = computed(() => {
+  const total = beltLengthResult.value.belt_length
+  if (total == null) return null
+  const tol = Number(beltParams.value.length_tolerance) || 0
+  return total + tol
+})
 
 // 张紧轮力值换算
 const tensionerContactParams = computed(() => {
@@ -1592,11 +1771,194 @@ async function calcBeltLength() {
         total_arc: res.data.total_arc,
         details: res.data.details || []
       }
+      // 皮带长度计算成功后，计算短/长皮带张紧轮坐标和自由位置
+      calcTensionerPosition()
+      calcFreePosition()
     }
   } catch (e) {
     console.error('皮带长度计算失败:', e)
   }
 }
+
+// 计算短/长皮带长度对应的张紧轮XY坐标 - 调用后端API
+// 短皮带 = 总长 - 公差，长皮带 = 总长 + 公差
+async function calcTensionerPosition() {
+  const list = sharedStore.pulleys.filter(p => p.code && p.x != null && p.y != null)
+  const emptyResult = {
+    short_belt_length: null, tensioner_x: null, tensioner_y: null,
+    tensioner_angle: null, achieved_length: null, arm_length: null,
+    iterations: null, converged: null
+  }
+  const emptyLong = {
+    long_belt_length: null, tensioner_x: null, tensioner_y: null,
+    tensioner_angle: null, achieved_length: null, arm_length: null,
+    iterations: null, converged: null
+  }
+
+  if (list.length < 2) {
+    sharedStore.shortBeltResult = { ...emptyResult }
+    sharedStore.longBeltResult = { ...emptyLong }
+    return
+  }
+
+  const beltLength = sharedStore.beltLengthResult.belt_length
+  if (beltLength == null) return
+
+  const tol = Number(beltParams.value.length_tolerance) || 0
+  const shortTarget = beltLength - tol
+  const longTarget = beltLength + tol
+
+  const pivotX = tensioner.value.automatic.pivot_x
+  const pivotY = tensioner.value.automatic.pivot_y
+  if (pivotX == null || pivotY == null) {
+    sharedStore.shortBeltResult = { ...emptyResult, short_belt_length: shortTarget }
+    sharedStore.longBeltResult = { ...emptyLong, long_belt_length: longTarget }
+    return
+  }
+
+  const tensionerCode = list[list.length - 1].code
+  const pulleysPayload = list.map(p => ({
+    code: p.code, name: p.name || '', type: p.type,
+    x: Number(p.x) || 0, y: Number(p.y) || 0,
+    groove_dia: p.groove_dia != null ? Number(p.groove_dia) : null,
+    flat_dia: p.flat_dia != null ? Number(p.flat_dia) : null,
+  }))
+  const commonParams = {
+    pulleys: pulleysPayload,
+    tensioner_code: tensionerCode,
+    pivot_x: Number(pivotX),
+    pivot_y: Number(pivotY),
+    belt_thickness: Number(beltParams.value.flat_to_pitch) || 0,
+    lining_thickness: Number(beltParams.value.pitch_to_effective) || 0,
+  }
+
+  // 短皮带求解
+  try {
+    const res = await apiCalcTensionerPosition({ ...commonParams, target_length: shortTarget })
+    if (res.data.success) {
+      sharedStore.shortBeltResult = {
+        short_belt_length: Number(shortTarget.toFixed(4)),
+        tensioner_x: res.data.tensioner_x,
+        tensioner_y: res.data.tensioner_y,
+        tensioner_angle: res.data.tensioner_angle,
+        achieved_length: res.data.achieved_length,
+        arm_length: res.data.arm_length,
+        iterations: res.data.iterations,
+        converged: res.data.converged
+      }
+    }
+  } catch (e) {
+    console.error('短皮带张紧轮坐标计算失败:', e)
+  }
+
+  // 长皮带求解
+  try {
+    const res = await apiCalcTensionerPosition({ ...commonParams, target_length: longTarget })
+    if (res.data.success) {
+      sharedStore.longBeltResult = {
+        long_belt_length: Number(longTarget.toFixed(4)),
+        tensioner_x: res.data.tensioner_x,
+        tensioner_y: res.data.tensioner_y,
+        tensioner_angle: res.data.tensioner_angle,
+        achieved_length: res.data.achieved_length,
+        arm_length: res.data.arm_length,
+        iterations: res.data.iterations,
+        converged: res.data.converged
+      }
+    }
+  } catch (e) {
+    console.error('长皮带张紧轮坐标计算失败:', e)
+  }
+}
+
+// 计算张紧器自由位置的皮带长度和张紧轮XY坐标 - 调用后端API
+async function calcFreePosition() {
+  const list = sharedStore.pulleys.filter(p => p.code && p.x != null && p.y != null)
+  const empty = {
+    free_tensioner_x: null, free_tensioner_y: null, free_angle: null,
+    free_belt_length: null, work_angle: null, arm_length: null,
+    nominal_angle: null, rotation: null
+  }
+
+  if (list.length < 2) {
+    sharedStore.freePositionResult = { ...empty }
+    return
+  }
+
+  const pivotX = tensioner.value.automatic.pivot_x
+  const pivotY = tensioner.value.automatic.pivot_y
+  if (pivotX == null || pivotY == null) {
+    sharedStore.freePositionResult = { ...empty }
+    return
+  }
+
+  const tensionerCode = list[list.length - 1].code
+  const nominalAngle = Number(tensioner.value.automatic.nominal_angle) || 0
+  const rotation = tensioner.value.automatic.rotation || 'cw'
+
+  try {
+    const res = await apiCalcFreePosition({
+      pulleys: list.map(p => ({
+        code: p.code, name: p.name || '', type: p.type,
+        x: Number(p.x) || 0, y: Number(p.y) || 0,
+        groove_dia: p.groove_dia != null ? Number(p.groove_dia) : null,
+        flat_dia: p.flat_dia != null ? Number(p.flat_dia) : null,
+      })),
+      tensioner_code: tensionerCode,
+      pivot_x: Number(pivotX),
+      pivot_y: Number(pivotY),
+      nominal_angle: nominalAngle,
+      rotation: rotation,
+      belt_thickness: Number(beltParams.value.flat_to_pitch) || 0,
+      lining_thickness: Number(beltParams.value.pitch_to_effective) || 0,
+    })
+    if (res.data.success) {
+      sharedStore.freePositionResult = {
+        free_tensioner_x: res.data.free_tensioner_x,
+        free_tensioner_y: res.data.free_tensioner_y,
+        free_angle: res.data.free_angle,
+        free_belt_length: res.data.free_belt_length,
+        work_angle: res.data.work_angle,
+        arm_length: res.data.arm_length,
+        nominal_angle: res.data.nominal_angle,
+        rotation: res.data.rotation
+      }
+    }
+  } catch (e) {
+    console.error('张紧器自由位置计算失败:', e)
+  }
+}
+
+// 皮带公差变化时重新计算短/长皮带张紧轮坐标
+watch(
+  () => beltParams.value.length_tolerance,
+  () => {
+    if (sharedStore.beltLengthResult.belt_length != null) {
+      calcTensionerPosition()
+    }
+  }
+)
+
+// 枢轴坐标变化时重新计算短/长皮带张紧轮坐标和自由位置
+watch(
+  () => [tensioner.value.automatic.pivot_x, tensioner.value.automatic.pivot_y],
+  () => {
+    if (!isAutoCalculating.value && sharedStore.beltLengthResult.belt_length != null) {
+      calcTensionerPosition()
+      calcFreePosition()
+    }
+  }
+)
+
+// 名义扭转角或旋转方向变化时重新计算自由位置
+watch(
+  () => [tensioner.value.automatic.nominal_angle, tensioner.value.automatic.rotation],
+  () => {
+    if (!isAutoCalculating.value && sharedStore.beltLengthResult.belt_length != null) {
+      calcFreePosition()
+    }
+  }
+)
 
 // 用户修改表格XY时，根据计算模式触发计算
 function onTableXYChange(idx) {

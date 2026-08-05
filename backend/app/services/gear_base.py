@@ -266,3 +266,186 @@ class GearBaseService:
             'total_arc': round(total_arc, 4),
             'details': details,
         }
+
+    def calc_belt_length_raw(self, pulleys: List[Dict]) -> float:
+        """计算皮带总长（原始浮点值），供求解器使用"""
+        lst = [p for p in pulleys if p.get('code') and p.get('x') is not None and p.get('y') is not None]
+        n = len(lst)
+        if n < 2:
+            return 0.0
+        k_values = [self.calc_pitch_diameter(p) for p in lst]
+        c_values, e_values, g_values, i_values = [], [], [], []
+        for idx in range(n):
+            curr = lst[idx]
+            next_p = lst[(idx + 1) % n]
+            c = self.calc_center_distance(curr, next_p)
+            c_values.append(c)
+            e_values.append(self.calc_upper_tangent_angle(
+                curr, next_p, k_values[idx], k_values[(idx + 1) % n], c))
+            g_values.append(self.calc_lower_tangent_angle(curr, next_p, c))
+            i_values.append(self.calc_cumulative_angle(g_values[idx], e_values[idx]))
+        s_values = []
+        for idx in range(n):
+            prev_idx = (idx - 1 + n) % n
+            s_values.append(self.calc_wrap_angle(
+                i_values[prev_idx], i_values[idx], lst[idx].get('type', 'groove')))
+        q_values = [c_values[idx] * math.cos(math.radians(e_values[idx])) for idx in range(n)]
+        arc_values = [s_values[idx] * k_values[idx] * math.pi / 360 for idx in range(n)]
+        return sum(q_values) + sum(arc_values)
+
+    @staticmethod
+    def _normalize_angle(deg: float) -> float:
+        """角度归一化到 0~360°"""
+        return deg % 360.0
+
+    def calc_tensioner_position(self, pulleys: List[Dict], target_length: float,
+                                 tensioner_code: str, pivot_x: float,
+                                 pivot_y: float) -> Dict:
+        """
+        沿张紧轮臂弧（以枢轴为圆心）搜索使皮带长度等于目标长度的张紧轮XY坐标。
+        使用牛顿法+步长阻尼沿枢轴圆弧搜索角度。
+        返回张紧轮XY、臂角度(0-360°)、达成长度等。
+        """
+        tensioner_idx = None
+        for i, p in enumerate(pulleys):
+            if p.get('code') == tensioner_code:
+                tensioner_idx = i
+                break
+        if tensioner_idx is None:
+            return {'error': f'未找到张紧轮: {tensioner_code}'}
+
+        curr_x = float(pulleys[tensioner_idx].get('x') or 0)
+        curr_y = float(pulleys[tensioner_idx].get('y') or 0)
+        arm_length = math.sqrt((curr_x - pivot_x) ** 2 + (curr_y - pivot_y) ** 2)
+        if arm_length < 1e-6:
+            return {'error': '臂长为零，无法搜索'}
+
+        curr_angle = math.degrees(math.atan2(curr_y - pivot_y, curr_x - pivot_x))
+        current_belt = self.calc_belt_length_raw(pulleys)
+
+        if abs(current_belt - target_length) < 0.001:
+            return {
+                'tensioner_x': round(curr_x, 4),
+                'tensioner_y': round(curr_y, 4),
+                'tensioner_angle': round(self._normalize_angle(curr_angle), 4),
+                'achieved_length': round(current_belt, 4),
+                'arm_length': round(arm_length, 4),
+                'iterations': 0,
+                'converged': True
+            }
+
+        def belt_at_angle(angle_deg: float) -> float:
+            rad = math.radians(angle_deg)
+            pulleys[tensioner_idx]['x'] = pivot_x + arm_length * math.cos(rad)
+            pulleys[tensioner_idx]['y'] = pivot_y + arm_length * math.sin(rad)
+            return self.calc_belt_length_raw(pulleys)
+
+        angle = curr_angle
+        best_angle = curr_angle
+        best_error = abs(current_belt - target_length)
+        converged = False
+        max_iterations = 200
+        h = 0.05
+        iteration = 0
+
+        for iteration in range(1, max_iterations + 1):
+            belt = belt_at_angle(angle)
+            error = belt - target_length
+            if abs(error) < 0.001:
+                converged = True
+                break
+            if abs(error) < best_error:
+                best_error = abs(error)
+                best_angle = angle
+            belt_plus = belt_at_angle(angle + h)
+            dL_dangle = (belt_plus - belt) / h
+            if abs(dL_dangle) < 1e-12:
+                break
+            step = -error / dL_dangle
+            max_step = 10.0
+            if abs(step) > max_step:
+                step = max_step if step > 0 else -max_step
+            angle += step
+            if abs(angle - curr_angle) > 60:
+                angle = curr_angle + (60 if angle > curr_angle else -60)
+
+        if not converged:
+            angle = best_angle
+
+        final_belt = belt_at_angle(angle)
+        final_x = pulleys[tensioner_idx]['x']
+        final_y = pulleys[tensioner_idx]['y']
+
+        return {
+            'tensioner_x': round(final_x, 4),
+            'tensioner_y': round(final_y, 4),
+            'tensioner_angle': round(self._normalize_angle(angle), 4),
+            'achieved_length': round(final_belt, 4),
+            'arm_length': round(arm_length, 4),
+            'iterations': iteration,
+            'converged': converged or best_error < 0.05
+        }
+
+    def calc_free_position(self, pulleys: List[Dict], tensioner_code: str,
+                            pivot_x: float, pivot_y: float,
+                            nominal_angle: float, rotation: str) -> Dict:
+        """
+        计算张紧器自由位置的皮带长度和张紧轮XY坐标。
+
+        张紧器从自由位置旋转名义扭转角(nominal_angle)到达工作位置。
+        旋转方向决定角度变化方向：
+          - cw（顺时针，屏幕坐标系角度增加）：工作角 = 自由角 + nominal_angle
+            → 自由角 = 工作角 - nominal_angle
+          - ccw（逆时针，屏幕坐标系角度减少）：工作角 = 自由角 - nominal_angle
+            → 自由角 = 工作角 + nominal_angle
+
+        返回自由位置的张紧轮XY、自由角度(0-360°)、皮带长度、工作角度、臂长。
+        """
+        import copy
+        pulleys_copy = copy.deepcopy(pulleys)
+
+        tensioner_idx = None
+        for i, p in enumerate(pulleys_copy):
+            if p.get('code') == tensioner_code:
+                tensioner_idx = i
+                break
+        if tensioner_idx is None:
+            return {'error': f'未找到张紧轮: {tensioner_code}'}
+
+        curr_x = float(pulleys_copy[tensioner_idx].get('x') or 0)
+        curr_y = float(pulleys_copy[tensioner_idx].get('y') or 0)
+        arm_length = math.sqrt((curr_x - pivot_x) ** 2 + (curr_y - pivot_y) ** 2)
+        if arm_length < 1e-6:
+            return {'error': '臂长为零'}
+
+        # 工作角度（0-360°）
+        work_angle = self._normalize_angle(
+            math.degrees(math.atan2(curr_y - pivot_y, curr_x - pivot_x)))
+
+        # 自由角度
+        if rotation == 'cw':
+            free_angle = work_angle - nominal_angle
+        else:  # ccw
+            free_angle = work_angle + nominal_angle
+        free_angle = self._normalize_angle(free_angle)
+
+        # 自由位置的张紧轮XY
+        free_rad = math.radians(free_angle)
+        free_x = pivot_x + arm_length * math.cos(free_rad)
+        free_y = pivot_y + arm_length * math.sin(free_rad)
+
+        # 用自由位置的张紧轮替换工作位置，计算皮带长度
+        pulleys_copy[tensioner_idx]['x'] = free_x
+        pulleys_copy[tensioner_idx]['y'] = free_y
+        free_belt_length = self.calc_belt_length_raw(pulleys_copy)
+
+        return {
+            'free_tensioner_x': round(free_x, 4),
+            'free_tensioner_y': round(free_y, 4),
+            'free_angle': round(free_angle, 4),
+            'free_belt_length': round(free_belt_length, 4),
+            'work_angle': round(work_angle, 4),
+            'arm_length': round(arm_length, 4),
+            'nominal_angle': round(nominal_angle, 4),
+            'rotation': rotation
+        }

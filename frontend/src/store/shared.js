@@ -33,6 +33,24 @@ export const sharedStore = reactive({
     total_arc: null,
     details: []
   },
+  // 短皮带长度计算结果（短皮带 = 总长 - 公差）
+  shortBeltResult: {
+    short_belt_length: null, tensioner_x: null, tensioner_y: null,
+    tensioner_angle: null, achieved_length: null, arm_length: null,
+    iterations: null, converged: null
+  },
+  // 长皮带长度计算结果（长皮带 = 总长 + 公差）
+  longBeltResult: {
+    long_belt_length: null, tensioner_x: null, tensioner_y: null,
+    tensioner_angle: null, achieved_length: null, arm_length: null,
+    iterations: null, converged: null
+  },
+  // 张紧器自由位置计算结果
+  freePositionResult: {
+    free_tensioner_x: null, free_tensioner_y: null, free_angle: null,
+    free_belt_length: null, work_angle: null, arm_length: null,
+    nominal_angle: null, rotation: null
+  },
   // 张紧器参数
   tensioner: {
     type: '',

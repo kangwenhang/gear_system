@@ -43,6 +43,16 @@ export const calcBeltLength = (data) => {
   return api.post('/calc-belt-length', data)
 }
 
+// 计算短/长皮带长度对应的张紧轮XY坐标
+export const calcTensionerPosition = (data) => {
+  return api.post('/calc-tensioner-position', data)
+}
+
+// 计算张紧器自由位置的皮带长度和张紧轮XY坐标
+export const calcFreePosition = (data) => {
+  return api.post('/calc-free-position', data)
+}
+
 // 集中导出（方便在页面中一次性引入）
 export default {
   getBeltOptions,
@@ -51,5 +61,7 @@ export default {
   calcContactParams,
   calcAlignment,
   calcTensionerCoord,
-  calcBeltLength
+  calcBeltLength,
+  calcTensionerPosition,
+  calcFreePosition
 }
