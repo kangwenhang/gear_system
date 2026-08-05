@@ -18,18 +18,16 @@ class GearBaseService:
 
     def calc_pitch_diameter(self, pulley: Dict) -> float:
         """
-        计算节圆直径 K（对应 Excel Geometry!K167 公式）
-        - 槽轮(Grooved): K = groove_dia - 4.6
-        - 平轮(Flat):    K = flat_dia + 4.6
-
-        注：4.6 为 Excel 中硬编码的固定偏移量（Geometry!K167: =IF(M167="Flat",K59+4.6,K59-4.6)）
+        计算节圆直径 K
+        - 槽轮(Grooved): K = Input!G (groove_dia)
+        - 平轮(Flat): K = G + 2×(带厚 + 衬厚) = flat_dia + 2×(belt_thickness + lining_thickness)
         """
         p_type = pulley.get('type', 'groove')
         if p_type == 'flat':
             flat_dia = float(pulley.get('flat_dia') or 0)
-            return flat_dia + 4.6
+            return flat_dia + 2 * (self.belt_thickness + self.lining_thickness)
         else:
-            return float(pulley.get('groove_dia') or 0) - 4.6
+            return float(pulley.get('groove_dia') or 0)
 
     def calc_center_distance(self, curr: Dict, next_p: Dict) -> float:
         """计算两带轮中心距 C = sqrt((x2-x1)² + (y2-y1)²)"""
@@ -450,136 +448,4 @@ class GearBaseService:
             'arm_length': round(arm_length, 4),
             'nominal_angle': round(nominal_angle, 4),
             'rotation': rotation
-        }
-
-    def calc_install_position(self, pulleys: List[Dict], tensioner_code: str,
-                               pivot_x: float, pivot_y: float,
-                               stroke: float, rotation: str,
-                               theoretical_belt_length: float,
-                               nominal_angle: float = 0.0) -> Dict:
-        """
-        计算张紧器安装位置的皮带长度和张紧轮XY坐标。
-
-        安装位置 = 自由位置 + 总行程(stroke)度（朝工作方向继续旋转）。
-        旋转关系（与自由位置计算保持一致的方向约定）：
-          - cw（顺时针，角度增加方向为工作方向）：
-              自由角 = work_angle - nominal_angle
-              安装角 = 自由角 + stroke = work_angle - nominal_angle + stroke
-          - ccw（逆时针，角度减少方向为工作方向）：
-              自由角 = work_angle + nominal_angle
-              安装角 = 自由角 - stroke = work_angle + nominal_angle - stroke
-
-        安装位置皮带路径变短，皮带松弛可套上。
-
-        安装困难判断（基准为理论皮带长度 Input!G56）：
-          安装位置路径长度 < 理论皮带长度 → 路径比皮带短，皮带松弛可套上 → 可安装
-          安装位置路径长度 >= 理论皮带长度 → 路径不比皮带短，皮带无法松弛 → 安装困难
-
-        返回安装位置的张紧轮XY、安装角度(0-360°)、安装皮带长度、
-        自由角度、工作角度、臂长、是否安装困难、困难提示信息。
-        """
-        import copy
-        pulleys_copy = copy.deepcopy(pulleys)
-
-        tensioner_idx = None
-        for i, p in enumerate(pulleys_copy):
-            if p.get('code') == tensioner_code:
-                tensioner_idx = i
-                break
-        if tensioner_idx is None:
-            return {'error': f'未找到张紧轮: {tensioner_code}'}
-
-        curr_x = float(pulleys_copy[tensioner_idx].get('x') or 0)
-        curr_y = float(pulleys_copy[tensioner_idx].get('y') or 0)
-        arm_length = math.sqrt((curr_x - pivot_x) ** 2 + (curr_y - pivot_y) ** 2)
-        if arm_length < 1e-6:
-            return {'error': '臂长为零'}
-
-        # 工作角度（0-360°）
-        work_angle = self._normalize_angle(
-            math.degrees(math.atan2(curr_y - pivot_y, curr_x - pivot_x)))
-
-        # 自由角度（与 calc_free_position 一致）
-        if rotation == 'cw':
-            free_angle = work_angle - nominal_angle
-        else:  # ccw
-            free_angle = work_angle + nominal_angle
-        free_angle = self._normalize_angle(free_angle)
-
-        # 安装角度 = 自由角度 + stroke（朝工作方向继续旋转）
-        if rotation == 'cw':
-            install_angle = free_angle + stroke
-        else:  # ccw
-            install_angle = free_angle - stroke
-        install_angle = self._normalize_angle(install_angle)
-
-        # 安装位置的张紧轮XY
-        install_rad = math.radians(install_angle)
-        install_x = pivot_x + arm_length * math.cos(install_rad)
-        install_y = pivot_y + arm_length * math.sin(install_rad)
-
-        # 用安装位置的张紧轮替换工作位置，计算皮带路径长度
-        pulleys_copy[tensioner_idx]['x'] = install_x
-        pulleys_copy[tensioner_idx]['y'] = install_y
-        install_belt_length = self.calc_belt_length_raw(pulleys_copy)
-
-        # 工作位置皮带长度（原数据）
-        work_belt_length = self.calc_belt_length_raw(
-            [{**p, 'x': float(p.get('x') or 0), 'y': float(p.get('y') or 0)} for p in pulleys]
-        )
-
-        # 安装困难判断：安装位置路径 >= 理论皮带长度 → 困难
-        difficult = False
-        messages = []
-        if theoretical_belt_length is not None and install_belt_length >= theoretical_belt_length:
-            difficult = True
-            gap = install_belt_length - theoretical_belt_length
-            messages.append(
-                f'安装困难：安装位置路径长度({install_belt_length:.2f}mm) '
-                f'不小于理论皮带长度({theoretical_belt_length:.2f}mm)，'
-                f'差值 {gap:.2f}mm，皮带无法松弛套上。'
-                f'建议：增大张紧器总行程、调整枢轴位置或缩短皮带路径。'
-            )
-
-        # 行程利用情况：达到理论皮带长度所需旋转角度（从自由位置出发）
-        required_rotation = None
-        if install_belt_length != work_belt_length and stroke != 0:
-            # 安装方向每旋转1度，路径变化量（相对于工作位置）
-            delta_per_deg = (install_belt_length - work_belt_length) / stroke
-            if abs(delta_per_deg) > 1e-9:
-                # 要让路径 = theoretical_belt_length，需要变化 (theoretical - work)
-                required_rotation = (theoretical_belt_length - work_belt_length) / delta_per_deg
-                if required_rotation < 0:
-                    required_rotation = 0
-                if required_rotation > stroke and not difficult:
-                    difficult = True
-                    messages.append(
-                        f'行程不足：达到理论皮带长度需旋转 {required_rotation:.2f}°，'
-                        f'超过总行程 {stroke}°，差值 {required_rotation - stroke:.2f}°。'
-                    )
-
-        if not difficult:
-            slack = theoretical_belt_length - install_belt_length if theoretical_belt_length is not None else 0
-            messages.append(
-                f'安装正常：安装位置路径长度({install_belt_length:.2f}mm) '
-                f'小于理论皮带长度({theoretical_belt_length:.2f}mm)，'
-                f'皮带松弛量 {slack:.2f}mm，可正常安装。'
-            )
-
-        return {
-            'install_tensioner_x': round(install_x, 4),
-            'install_tensioner_y': round(install_y, 4),
-            'install_angle': round(install_angle, 4),
-            'free_angle': round(free_angle, 4),
-            'install_belt_length': round(install_belt_length, 4),
-            'work_angle': round(work_angle, 4),
-            'work_belt_length': round(work_belt_length, 4),
-            'theoretical_belt_length': round(theoretical_belt_length, 4) if theoretical_belt_length is not None else None,
-            'arm_length': round(arm_length, 4),
-            'stroke': round(stroke, 4),
-            'nominal_angle': round(nominal_angle, 4),
-            'rotation': rotation,
-            'required_rotation': round(required_rotation, 4) if required_rotation is not None else None,
-            'difficult': difficult,
-            'messages': messages
         }

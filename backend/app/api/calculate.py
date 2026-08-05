@@ -51,20 +51,6 @@ class FreePositionRequest(BaseModel):
     belt_thickness: Optional[float] = 1.2
     lining_thickness: Optional[float] = 1.0
 
-
-class InstallPositionRequest(BaseModel):
-    """张紧器安装位置计算请求"""
-    pulleys: List[PulleyItem]
-    tensioner_code: str = 'TEN'
-    pivot_x: Optional[float] = None
-    pivot_y: Optional[float] = None
-    stroke: float = 40.0             # 总行程(°)
-    rotation: str = 'cw'             # 旋转方向 cw/ccw
-    nominal_angle: float = 25.0      # 名义扭转角（用于计算自由位置）
-    theoretical_belt_length: Optional[float] = None  # 理论皮带长度 Input!G56（用于判断安装困难）
-    belt_thickness: Optional[float] = 1.2
-    lining_thickness: Optional[float] = 1.0
-
 @router.post("/calculate")
 def calculate(req: CalculateRequest):
     try:
@@ -173,41 +159,6 @@ def calc_free_position(req: FreePositionRequest):
             pivot_y=req.pivot_y,
             nominal_angle=req.nominal_angle,
             rotation=req.rotation
-        )
-        if 'error' in result:
-            raise HTTPException(status_code=400, detail=result['error'])
-        return {"success": True, **result}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calc-install-position")
-def calc_install_position(req: InstallPositionRequest):
-    """
-    计算张紧器安装位置的皮带长度和张紧轮XY坐标。
-
-    安装位置 = 工作位置反向旋转总行程(stroke)度（远离皮带方向）。
-    安装困难判断：安装位置皮带长度 < 长皮带长度 → 提示安装困难。
-    """
-    try:
-        if req.pivot_x is None or req.pivot_y is None:
-            raise HTTPException(status_code=400, detail="缺少枢轴坐标 pivot_x/pivot_y")
-        service = GearBaseService(
-            belt_thickness=req.belt_thickness,
-            lining_thickness=req.lining_thickness
-        )
-        pulleys_data = [p.model_dump() for p in req.pulleys]
-        result = service.calc_install_position(
-            pulleys=pulleys_data,
-            tensioner_code=req.tensioner_code,
-            pivot_x=req.pivot_x,
-            pivot_y=req.pivot_y,
-            stroke=req.stroke,
-            rotation=req.rotation,
-            theoretical_belt_length=req.theoretical_belt_length,
-            nominal_angle=req.nominal_angle
         )
         if 'error' in result:
             raise HTTPException(status_code=400, detail=result['error'])

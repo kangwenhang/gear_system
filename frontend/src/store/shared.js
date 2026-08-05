@@ -51,13 +51,6 @@ export const sharedStore = reactive({
     free_belt_length: null, work_angle: null, arm_length: null,
     nominal_angle: null, rotation: null
   },
-  // 张紧器安装位置计算结果
-  installPositionResult: {
-    install_tensioner_x: null, install_tensioner_y: null, install_angle: null,
-    free_angle: null, install_belt_length: null, work_angle: null, work_belt_length: null,
-    theoretical_belt_length: null, arm_length: null, stroke: null, nominal_angle: null, rotation: null,
-    required_rotation: null, difficult: null, messages: []
-  },
   // 张紧器参数
   tensioner: {
     type: '',

@@ -53,11 +53,6 @@ export const calcFreePosition = (data) => {
   return api.post('/calc-free-position', data)
 }
 
-// 计算张紧器安装位置的皮带长度和张紧轮XY坐标（含安装困难判断）
-export const calcInstallPosition = (data) => {
-  return api.post('/calc-install-position', data)
-}
-
 // 集中导出（方便在页面中一次性引入）
 export default {
   getBeltOptions,
@@ -68,6 +63,5 @@ export default {
   calcTensionerCoord,
   calcBeltLength,
   calcTensionerPosition,
-  calcFreePosition,
-  calcInstallPosition
+  calcFreePosition
 }
