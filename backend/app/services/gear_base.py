@@ -16,34 +16,18 @@ class GearBaseService:
         self.belt_thickness = belt_thickness      # Input!H21 带厚
         self.lining_thickness = lining_thickness  # Input!H22 衬厚
 
-    def calc_pitch_diameter_raw(self, pulley: Dict) -> float:
-        """
-        计算原始节圆直径 K_raw（对应 Excel Geometry!K5-K14 / $K$5）
-        - 槽轮(Grooved): K_raw = groove_dia
-        - 平轮(Flat):    K_raw = flat_dia + 2*(belt_thickness + lining_thickness)
-
-        用于最后一个带轮→第一个带轮的切点角计算（Excel E公式中 $K$5）
-        """
-        p_type = pulley.get('type', 'groove')
-        if p_type == 'flat':
-            flat_dia = float(pulley.get('flat_dia') or 0)
-            return flat_dia + 2 * (self.belt_thickness + self.lining_thickness)
-        else:
-            return float(pulley.get('groove_dia') or 0)
-
     def calc_pitch_diameter(self, pulley: Dict) -> float:
         """
-        计算修正节圆直径 K_final（对应 Excel Geometry!K167-K176 公式）
-        - 槽轮(Grooved): K_final = groove_dia - 4.6
-        - 平轮(Flat):    K_final = flat_dia + 2*(belt_thickness + lining_thickness) + 4.6
+        计算节圆直径 K（对应 Excel Geometry!K167 公式）
+        - 槽轮(Grooved): K = groove_dia - 4.6
+        - 平轮(Flat):    K = flat_dia + 4.6
 
-        用于弧长计算和大部分切点角计算。
         注：4.6 为 Excel 中硬编码的固定偏移量（Geometry!K167: =IF(M167="Flat",K59+4.6,K59-4.6)）
         """
         p_type = pulley.get('type', 'groove')
         if p_type == 'flat':
             flat_dia = float(pulley.get('flat_dia') or 0)
-            return flat_dia + 2 * (self.belt_thickness + self.lining_thickness) + 4.6
+            return flat_dia + 4.6
         else:
             return float(pulley.get('groove_dia') or 0) - 4.6
 
@@ -193,10 +177,10 @@ class GearBaseService:
             return {'belt_length': 0, 'details': [], 'segments': [], 'arcs': []}
 
         # 1. 计算节圆直径 K
-        # k_values: 修正节径 K_final（用于弧长和大部分切点角）
-        # k_raw_values: 原始节径 K_raw（用于最后一个→第一个的切点角，对应 Excel $K$5）
-        k_values = [self.calc_pitch_diameter(p) for p in lst]
-        k_raw_values = [self.calc_pitch_diameter_raw(p) for p in lst]
+        k_values = []
+        for p in lst:
+            k = self.calc_pitch_diameter(p)
+            k_values.append(k)
 
         # 2. 计算切点距离 C、上切点角 E、下切点角 G、累计切点角 I
         c_values = []  # 中心距
@@ -214,15 +198,9 @@ class GearBaseService:
             c = self.calc_center_distance(curr, next_p)
             c_values.append(c)
 
-            # 上切点角 E
-            # Excel 行为：最后一个带轮(idx=n-1)→第一个带轮(idx=0)时，
-            # 第一个带轮用 $K$5（原始节径 K_raw），而非 K167（修正节径 K_final）
-            if idx == n - 1:
-                k_next = k_raw_values[next_idx]
-            else:
-                k_next = k_values[next_idx]
+            # 上切点角
             e = self.calc_upper_tangent_angle(
-                curr, next_p, k_values[idx], k_next, c
+                curr, next_p, k_values[idx], k_values[next_idx], c
             )
             e_values.append(e)
 
@@ -298,18 +276,14 @@ class GearBaseService:
         if n < 2:
             return 0.0
         k_values = [self.calc_pitch_diameter(p) for p in lst]
-        k_raw_values = [self.calc_pitch_diameter_raw(p) for p in lst]
         c_values, e_values, g_values, i_values = [], [], [], []
         for idx in range(n):
             curr = lst[idx]
-            next_idx = (idx + 1) % n
-            next_p = lst[next_idx]
+            next_p = lst[(idx + 1) % n]
             c = self.calc_center_distance(curr, next_p)
             c_values.append(c)
-            # 最后一个→第一个：第一个带轮用 K_raw（对应 Excel $K$5）
-            k_next = k_raw_values[next_idx] if idx == n - 1 else k_values[next_idx]
             e_values.append(self.calc_upper_tangent_angle(
-                curr, next_p, k_values[idx], k_next, c))
+                curr, next_p, k_values[idx], k_values[(idx + 1) % n], c))
             g_values.append(self.calc_lower_tangent_angle(curr, next_p, c))
             i_values.append(self.calc_cumulative_angle(g_values[idx], e_values[idx]))
         s_values = []
