@@ -1124,7 +1124,12 @@
             <tr>
               <td>安装角度</td>
               <td>{{ formatDebugNum(installPositionResult.install_angle) }}°</td>
-              <td>安装位置臂角度（0-360°）</td>
+              <td>安装位置臂角度（0-360°）= 自由角 + 总行程</td>
+            </tr>
+            <tr>
+              <td>自由角度</td>
+              <td>{{ formatDebugNum(installPositionResult.free_angle) }}°</td>
+              <td>自由位置臂角度（0-360°）= 工作角 - 名义扭转角</td>
             </tr>
             <tr>
               <td>工作角度</td>
@@ -2013,13 +2018,13 @@ async function calcFreePosition() {
 }
 
 // 计算张紧器安装位置的皮带长度和张紧轮XY坐标 - 调用后端API
-// 安装位置 = 工作位置反向旋转总行程(stroke)度，并判断安装是否困难
+// 安装位置 = 自由位置 + 总行程(stroke)度（朝工作方向继续旋转），并判断安装是否困难
 async function calcInstallPosition() {
   const list = sharedStore.pulleys.filter(p => p.code && p.x != null && p.y != null)
   const empty = {
     install_tensioner_x: null, install_tensioner_y: null, install_angle: null,
-    install_belt_length: null, work_angle: null, work_belt_length: null,
-    long_belt_length: null, arm_length: null, stroke: null, rotation: null,
+    free_angle: null, install_belt_length: null, work_angle: null, work_belt_length: null,
+    long_belt_length: null, arm_length: null, stroke: null, nominal_angle: null, rotation: null,
     required_rotation: null, difficult: null, messages: []
   }
 
@@ -2038,6 +2043,7 @@ async function calcInstallPosition() {
   const tensionerCode = list[list.length - 1].code
   const stroke = Number(tensioner.value.automatic.stroke) || 0
   const rotation = tensioner.value.automatic.rotation || 'cw'
+  const nominalAngle = Number(tensioner.value.automatic.nominal_angle) || 0
   // 长皮带长度用于判断安装困难
   const longBeltLen = longBeltLength.value
 
@@ -2054,6 +2060,7 @@ async function calcInstallPosition() {
       pivot_y: Number(pivotY),
       stroke: stroke,
       rotation: rotation,
+      nominal_angle: nominalAngle,
       long_belt_length: longBeltLen,
       belt_thickness: Number(beltParams.value.flat_to_pitch) || 0,
       lining_thickness: Number(beltParams.value.pitch_to_effective) || 0,
@@ -2063,12 +2070,14 @@ async function calcInstallPosition() {
         install_tensioner_x: res.data.install_tensioner_x,
         install_tensioner_y: res.data.install_tensioner_y,
         install_angle: res.data.install_angle,
+        free_angle: res.data.free_angle,
         install_belt_length: res.data.install_belt_length,
         work_angle: res.data.work_angle,
         work_belt_length: res.data.work_belt_length,
         long_belt_length: res.data.long_belt_length,
         arm_length: res.data.arm_length,
         stroke: res.data.stroke,
+        nominal_angle: res.data.nominal_angle,
         rotation: res.data.rotation,
         required_rotation: res.data.required_rotation,
         difficult: res.data.difficult,

@@ -60,6 +60,7 @@ class InstallPositionRequest(BaseModel):
     pivot_y: Optional[float] = None
     stroke: float = 40.0             # 总行程(°)
     rotation: str = 'cw'             # 旋转方向 cw/ccw
+    nominal_angle: float = 25.0      # 名义扭转角（用于计算自由位置）
     long_belt_length: Optional[float] = None  # 长皮带长度（用于判断安装困难）
     belt_thickness: Optional[float] = 1.2
     lining_thickness: Optional[float] = 1.0
@@ -205,7 +206,8 @@ def calc_install_position(req: InstallPositionRequest):
             pivot_y=req.pivot_y,
             stroke=req.stroke,
             rotation=req.rotation,
-            long_belt_length=req.long_belt_length
+            long_belt_length=req.long_belt_length,
+            nominal_angle=req.nominal_angle
         )
         if 'error' in result:
             raise HTTPException(status_code=400, detail=result['error'])

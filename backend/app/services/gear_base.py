@@ -453,24 +453,28 @@ class GearBaseService:
     def calc_install_position(self, pulleys: List[Dict], tensioner_code: str,
                                pivot_x: float, pivot_y: float,
                                stroke: float, rotation: str,
-                               long_belt_length: float) -> Dict:
+                               long_belt_length: float,
+                               nominal_angle: float = 0.0) -> Dict:
         """
         计算张紧器安装位置的皮带长度和张紧轮XY坐标。
 
-        安装位置与自由位置在相反方向：
-          - 自由位置：远离工作方向（皮带路径变长，张紧器被皮带拉回工作位置）
-          - 安装位置：朝工作方向继续旋转（皮带路径变短，皮带松弛可套上）
+        安装位置 = 自由位置 + 总行程(stroke)度（朝工作方向继续旋转）。
+        旋转关系（与自由位置计算保持一致的方向约定）：
+          - cw（顺时针，角度增加方向为工作方向）：
+              自由角 = work_angle - nominal_angle
+              安装角 = 自由角 + stroke = work_angle - nominal_angle + stroke
+          - ccw（逆时针，角度减少方向为工作方向）：
+              自由角 = work_angle + nominal_angle
+              安装角 = 自由角 - stroke = work_angle + nominal_angle - stroke
 
-          即安装方向 = 工作方向（与自由方向相反）：
-            cw（工作方向=角度增加）：install_angle = work_angle + stroke
-            ccw（工作方向=角度减少）：install_angle = work_angle - stroke
+        安装位置皮带路径变短，皮带松弛可套上。
 
         安装困难判断：
           安装位置路径长度 > 长皮带长度 → 最长皮带也比路径短，套不上 → 困难
           安装位置路径长度 <= 长皮带长度 → 皮带比路径长，松弛可套上 → 正常
 
         返回安装位置的张紧轮XY、安装角度(0-360°)、安装皮带长度、
-        工作角度、臂长、是否安装困难、困难提示信息。
+        自由角度、工作角度、臂长、是否安装困难、困难提示信息。
         """
         import copy
         pulleys_copy = copy.deepcopy(pulleys)
@@ -493,11 +497,18 @@ class GearBaseService:
         work_angle = self._normalize_angle(
             math.degrees(math.atan2(curr_y - pivot_y, curr_x - pivot_x)))
 
-        # 安装角度（与自由方向相反，即工作方向继续旋转 stroke 度）
+        # 自由角度（与 calc_free_position 一致）
         if rotation == 'cw':
-            install_angle = work_angle + stroke
+            free_angle = work_angle - nominal_angle
         else:  # ccw
-            install_angle = work_angle - stroke
+            free_angle = work_angle + nominal_angle
+        free_angle = self._normalize_angle(free_angle)
+
+        # 安装角度 = 自由角度 + stroke（朝工作方向继续旋转）
+        if rotation == 'cw':
+            install_angle = free_angle + stroke
+        else:  # ccw
+            install_angle = free_angle - stroke
         install_angle = self._normalize_angle(install_angle)
 
         # 安装位置的张紧轮XY
@@ -528,10 +539,10 @@ class GearBaseService:
                 f'建议：增大张紧器总行程、调整枢轴位置或缩短皮带路径。'
             )
 
-        # 行程利用情况：达到长皮带长度所需旋转角度
+        # 行程利用情况：达到长皮带长度所需旋转角度（从自由位置出发）
         required_rotation = None
         if install_belt_length != work_belt_length and stroke != 0:
-            # 安装方向每旋转1度，路径变化量
+            # 安装方向每旋转1度，路径变化量（相对于工作位置）
             delta_per_deg = (install_belt_length - work_belt_length) / stroke
             if abs(delta_per_deg) > 1e-9:
                 # 要让路径 = long_belt_length，需要变化 (long - work)
@@ -557,12 +568,14 @@ class GearBaseService:
             'install_tensioner_x': round(install_x, 4),
             'install_tensioner_y': round(install_y, 4),
             'install_angle': round(install_angle, 4),
+            'free_angle': round(free_angle, 4),
             'install_belt_length': round(install_belt_length, 4),
             'work_angle': round(work_angle, 4),
             'work_belt_length': round(work_belt_length, 4),
             'long_belt_length': round(long_belt_length, 4) if long_belt_length is not None else None,
             'arm_length': round(arm_length, 4),
             'stroke': round(stroke, 4),
+            'nominal_angle': round(nominal_angle, 4),
             'rotation': rotation,
             'required_rotation': round(required_rotation, 4) if required_rotation is not None else None,
             'difficult': difficult,
