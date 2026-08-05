@@ -26,6 +26,13 @@ export const sharedStore = reactive({
     elongation: null,
     stretch: null
   },
+  // 皮带长度计算详细结果
+  beltLengthResult: {
+    belt_length: null,
+    total_straight: null,
+    total_arc: null,
+    details: []
+  },
   // 张紧器参数
   tensioner: {
     type: '',

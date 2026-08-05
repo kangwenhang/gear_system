@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
+from app.services.gear_base import GearBaseService
+
 router = APIRouter()
 
 class PulleyItem(BaseModel):
@@ -18,6 +20,13 @@ class PulleyItem(BaseModel):
 class CalculateRequest(BaseModel):
     info: dict
     pulleys: List[PulleyItem]
+
+
+class BeltLengthRequest(BaseModel):
+    """皮带长度计算请求"""
+    pulleys: List[PulleyItem]
+    belt_thickness: Optional[float] = 1.2    # Input!H21 带厚
+    lining_thickness: Optional[float] = 1.0  # Input!H22 衬厚
 
 @router.post("/calculate")
 def calculate(req: CalculateRequest):
@@ -44,5 +53,31 @@ def calculate(req: CalculateRequest):
             "count": len(results),
             "pulleys": results
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calc-belt-length")
+def calc_belt_length(req: BeltLengthRequest):
+    """
+    计算皮带长度
+
+    皮带总长 = Σ(切线段长度Q) + Σ(包角弧长)
+             = Σ(C_i × cos(E_i)) + Σ(S_i × K_i × π / 360)
+
+    其中:
+    - C: 两带轮中心距
+    - E: 上切点角（ASIN计算）
+    - S: 包角（带轮上的皮带接触角）
+    - K: 节圆直径
+    """
+    try:
+        service = GearBaseService(
+            belt_thickness=req.belt_thickness,
+            lining_thickness=req.lining_thickness
+        )
+        pulleys_data = [p.model_dump() for p in req.pulleys]
+        result = service.calc_belt_length(pulleys_data)
+        return {"success": True, **result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

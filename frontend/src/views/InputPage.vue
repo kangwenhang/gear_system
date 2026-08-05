@@ -872,6 +872,75 @@
           </tbody>
         </table>
       </div>
+
+      <div class="debug-section" v-if="beltLengthResult.belt_length != null">
+        <div class="debug-title">皮带长度计算</div>
+        <table class="debug-table">
+          <thead>
+            <tr>
+              <th>参数</th>
+              <th>值</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>皮带总长</td>
+              <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(beltLengthResult.belt_length) }} mm</td>
+              <td>Σ(切线段) + Σ(包角弧长)</td>
+            </tr>
+            <tr>
+              <td>直线段总长</td>
+              <td>{{ formatDebugNum(beltLengthResult.total_straight) }} mm</td>
+              <td>Σ(C × cos(E))</td>
+            </tr>
+            <tr>
+              <td>弧长总和</td>
+              <td>{{ formatDebugNum(beltLengthResult.total_arc) }} mm</td>
+              <td>Σ(S × K × π / 360)</td>
+            </tr>
+            <tr>
+              <td>带厚 (H21)</td>
+              <td>{{ formatDebugNum(beltParams.flat_to_pitch) }} mm</td>
+              <td>flat_to_pitch</td>
+            </tr>
+            <tr>
+              <td>衬厚 (H22)</td>
+              <td>{{ formatDebugNum(beltParams.pitch_to_effective) }} mm</td>
+              <td>pitch_to_effective</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="debug-table" style="margin-top: 8px">
+          <thead>
+            <tr>
+              <th>带轮</th>
+              <th>节圆直径K</th>
+              <th>中心距C</th>
+              <th>上切点角E</th>
+              <th>下切点角G</th>
+              <th>累计角I</th>
+              <th>包角S</th>
+              <th>切线段Q</th>
+              <th>弧长</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="d in beltLengthResult.details" :key="d.code">
+              <td>{{ d.code }} → {{ d.next_code }}</td>
+              <td>{{ formatDebugNum(d.pitch_diameter) }}</td>
+              <td>{{ formatDebugNum(d.center_dist) }}</td>
+              <td>{{ formatDebugNum(d.upper_tangent_angle) }}°</td>
+              <td>{{ formatDebugNum(d.lower_tangent_angle) }}°</td>
+              <td>{{ formatDebugNum(d.cumulative_angle) }}°</td>
+              <td>{{ formatDebugNum(d.wrap_angle) }}°</td>
+              <td>{{ formatDebugNum(d.tangent_length) }}</td>
+              <td>{{ formatDebugNum(d.arc_length) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </el-card>
 
   </div>
@@ -886,6 +955,7 @@ import PulleyDiagram from '@/components/PulleyDiagram.vue'
 import api from '../api/pulley.js'
 import { calcContactParams as apiCalcContactParams } from '../api/pulley.js'
 import { calcTensionerCoord as apiCalcTensionerCoord } from '../api/pulley.js'
+import { calcBeltLength as apiCalcBeltLength } from '../api/pulley.js'
 import { sharedStore } from '../store/shared.js'
 
 const formInfo = ref({
@@ -1094,6 +1164,9 @@ const tensionerGeometry = computed(() => {
     hubloadAngle
   }
 })
+
+// 皮带长度计算结果
+const beltLengthResult = computed(() => sharedStore.beltLengthResult || {})
 
 // 张紧轮力值换算
 const tensionerContactParams = computed(() => {
@@ -1483,9 +1556,47 @@ watch(
   () => [sharedStore.pulleys.map(p => ({ code: p.code, x: p.x, y: p.y, type: p.type, groove_dia: p.groove_dia, flat_dia: p.flat_dia })), sharedStore.beltParams.flat_to_pitch, sharedStore.beltParams.pitch_to_effective],
   () => {
     calcContactParams()
+    calcBeltLength()
   },
   { deep: true, immediate: true }
 )
+
+// 计算皮带长度 - 调用后端API
+async function calcBeltLength() {
+  const list = sharedStore.pulleys.filter(p => p.code && p.x != null && p.y != null)
+  if (list.length < 2) {
+    sharedStore.beltFullParams.effective_length = null
+    sharedStore.beltLengthResult = { belt_length: null, total_straight: null, total_arc: null, details: [] }
+    return
+  }
+
+  try {
+    const res = await apiCalcBeltLength({
+      pulleys: list.map(p => ({
+        code: p.code,
+        name: p.name || '',
+        type: p.type,
+        x: Number(p.x) || 0,
+        y: Number(p.y) || 0,
+        groove_dia: p.groove_dia != null ? Number(p.groove_dia) : null,
+        flat_dia: p.flat_dia != null ? Number(p.flat_dia) : null,
+      })),
+      belt_thickness: Number(beltParams.value.flat_to_pitch) || 0,
+      lining_thickness: Number(beltParams.value.pitch_to_effective) || 0,
+    })
+    if (res.data.success) {
+      sharedStore.beltFullParams.effective_length = res.data.belt_length
+      sharedStore.beltLengthResult = {
+        belt_length: res.data.belt_length,
+        total_straight: res.data.total_straight,
+        total_arc: res.data.total_arc,
+        details: res.data.details || []
+      }
+    }
+  } catch (e) {
+    console.error('皮带长度计算失败:', e)
+  }
+}
 
 // 用户修改表格XY时，根据计算模式触发计算
 function onTableXYChange(idx) {

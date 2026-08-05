@@ -38,6 +38,11 @@ export const calcTensionerCoord = (data) => {
   return api.post('/calc-tensioner-coord', data)
 }
 
+// 计算皮带长度
+export const calcBeltLength = (data) => {
+  return api.post('/calc-belt-length', data)
+}
+
 // 集中导出（方便在页面中一次性引入）
 export default {
   getBeltOptions,
@@ -45,5 +50,6 @@ export default {
   calcPulleyDiagram,
   calcContactParams,
   calcAlignment,
-  calcTensionerCoord
+  calcTensionerCoord,
+  calcBeltLength
 }
