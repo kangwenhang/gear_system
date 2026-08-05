@@ -453,7 +453,7 @@ class GearBaseService:
     def calc_install_position(self, pulleys: List[Dict], tensioner_code: str,
                                pivot_x: float, pivot_y: float,
                                stroke: float, rotation: str,
-                               long_belt_length: float,
+                               theoretical_belt_length: float,
                                nominal_angle: float = 0.0) -> Dict:
         """
         计算张紧器安装位置的皮带长度和张紧轮XY坐标。
@@ -469,9 +469,9 @@ class GearBaseService:
 
         安装位置皮带路径变短，皮带松弛可套上。
 
-        安装困难判断：
-          安装位置路径长度 > 长皮带长度 → 最长皮带也比路径短，套不上 → 困难
-          安装位置路径长度 <= 长皮带长度 → 皮带比路径长，松弛可套上 → 正常
+        安装困难判断（基准为理论皮带长度 Input!G56）：
+          安装位置路径长度 < 理论皮带长度 → 路径比皮带短，皮带松弛可套上 → 可安装
+          安装位置路径长度 >= 理论皮带长度 → 路径不比皮带短，皮带无法松弛 → 安装困难
 
         返回安装位置的张紧轮XY、安装角度(0-360°)、安装皮带长度、
         自由角度、工作角度、臂长、是否安装困难、困难提示信息。
@@ -526,41 +526,41 @@ class GearBaseService:
             [{**p, 'x': float(p.get('x') or 0), 'y': float(p.get('y') or 0)} for p in pulleys]
         )
 
-        # 安装困难判断：安装位置路径 > 长皮带长度 → 困难
+        # 安装困难判断：安装位置路径 >= 理论皮带长度 → 困难
         difficult = False
         messages = []
-        if long_belt_length is not None and install_belt_length > long_belt_length:
+        if theoretical_belt_length is not None and install_belt_length >= theoretical_belt_length:
             difficult = True
-            gap = install_belt_length - long_belt_length
+            gap = install_belt_length - theoretical_belt_length
             messages.append(
                 f'安装困难：安装位置路径长度({install_belt_length:.2f}mm) '
-                f'大于长皮带长度({long_belt_length:.2f}mm)，'
-                f'差值 {gap:.2f}mm，最长皮带也无法套上。'
+                f'不小于理论皮带长度({theoretical_belt_length:.2f}mm)，'
+                f'差值 {gap:.2f}mm，皮带无法松弛套上。'
                 f'建议：增大张紧器总行程、调整枢轴位置或缩短皮带路径。'
             )
 
-        # 行程利用情况：达到长皮带长度所需旋转角度（从自由位置出发）
+        # 行程利用情况：达到理论皮带长度所需旋转角度（从自由位置出发）
         required_rotation = None
         if install_belt_length != work_belt_length and stroke != 0:
             # 安装方向每旋转1度，路径变化量（相对于工作位置）
             delta_per_deg = (install_belt_length - work_belt_length) / stroke
             if abs(delta_per_deg) > 1e-9:
-                # 要让路径 = long_belt_length，需要变化 (long - work)
-                required_rotation = (long_belt_length - work_belt_length) / delta_per_deg
+                # 要让路径 = theoretical_belt_length，需要变化 (theoretical - work)
+                required_rotation = (theoretical_belt_length - work_belt_length) / delta_per_deg
                 if required_rotation < 0:
                     required_rotation = 0
                 if required_rotation > stroke and not difficult:
                     difficult = True
                     messages.append(
-                        f'行程不足：达到长皮带长度需旋转 {required_rotation:.2f}°，'
+                        f'行程不足：达到理论皮带长度需旋转 {required_rotation:.2f}°，'
                         f'超过总行程 {stroke}°，差值 {required_rotation - stroke:.2f}°。'
                     )
 
         if not difficult:
-            slack = long_belt_length - install_belt_length if long_belt_length is not None else 0
+            slack = theoretical_belt_length - install_belt_length if theoretical_belt_length is not None else 0
             messages.append(
                 f'安装正常：安装位置路径长度({install_belt_length:.2f}mm) '
-                f'小于长皮带长度({long_belt_length:.2f}mm)，'
+                f'小于理论皮带长度({theoretical_belt_length:.2f}mm)，'
                 f'皮带松弛量 {slack:.2f}mm，可正常安装。'
             )
 
@@ -572,7 +572,7 @@ class GearBaseService:
             'install_belt_length': round(install_belt_length, 4),
             'work_angle': round(work_angle, 4),
             'work_belt_length': round(work_belt_length, 4),
-            'long_belt_length': round(long_belt_length, 4) if long_belt_length is not None else None,
+            'theoretical_belt_length': round(theoretical_belt_length, 4) if theoretical_belt_length is not None else None,
             'arm_length': round(arm_length, 4),
             'stroke': round(stroke, 4),
             'nominal_angle': round(nominal_angle, 4),

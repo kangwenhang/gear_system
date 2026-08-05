@@ -1142,16 +1142,16 @@
               <td>工作位置皮带总长</td>
             </tr>
             <tr>
-              <td>长皮带长度</td>
-              <td>{{ formatDebugNum(installPositionResult.long_belt_length) }} mm</td>
-              <td>皮带总长 + 公差（皮带最长时）</td>
+              <td>理论皮带长度</td>
+              <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(installPositionResult.theoretical_belt_length) }} mm</td>
+              <td>Input!G56 理论皮带长度（安装困难判断基准）</td>
             </tr>
             <tr>
               <td>所需旋转角度</td>
               <td :style="{ color: installPositionResult.required_rotation > installPositionResult.stroke ? '#f56c6c' : '#67c23a', fontWeight: 600 }">
                 {{ formatDebugNum(installPositionResult.required_rotation) }}°
               </td>
-              <td>达到长皮带长度所需旋转角度（超过总行程则安装困难）</td>
+              <td>达到理论皮带长度所需旋转角度（超过总行程则安装困难）</td>
             </tr>
             <tr>
               <td>臂长</td>
@@ -2019,12 +2019,13 @@ async function calcFreePosition() {
 
 // 计算张紧器安装位置的皮带长度和张紧轮XY坐标 - 调用后端API
 // 安装位置 = 自由位置 + 总行程(stroke)度（朝工作方向继续旋转），并判断安装是否困难
+// 安装困难判断：安装位置皮带长度 < 理论皮带长度(Input!G56) → 可安装；>= 理论皮带长度 → 困难
 async function calcInstallPosition() {
   const list = sharedStore.pulleys.filter(p => p.code && p.x != null && p.y != null)
   const empty = {
     install_tensioner_x: null, install_tensioner_y: null, install_angle: null,
     free_angle: null, install_belt_length: null, work_angle: null, work_belt_length: null,
-    long_belt_length: null, arm_length: null, stroke: null, nominal_angle: null, rotation: null,
+    theoretical_belt_length: null, arm_length: null, stroke: null, nominal_angle: null, rotation: null,
     required_rotation: null, difficult: null, messages: []
   }
 
@@ -2044,8 +2045,8 @@ async function calcInstallPosition() {
   const stroke = Number(tensioner.value.automatic.stroke) || 0
   const rotation = tensioner.value.automatic.rotation || 'cw'
   const nominalAngle = Number(tensioner.value.automatic.nominal_angle) || 0
-  // 长皮带长度用于判断安装困难
-  const longBeltLen = longBeltLength.value
+  // 理论皮带长度（Input!G56）用于判断安装困难
+  const theoreticalBeltLen = sharedStore.beltLengthResult.belt_length
 
   try {
     const res = await apiCalcInstallPosition({
@@ -2061,7 +2062,7 @@ async function calcInstallPosition() {
       stroke: stroke,
       rotation: rotation,
       nominal_angle: nominalAngle,
-      long_belt_length: longBeltLen,
+      theoretical_belt_length: theoreticalBeltLen,
       belt_thickness: Number(beltParams.value.flat_to_pitch) || 0,
       lining_thickness: Number(beltParams.value.pitch_to_effective) || 0,
     })
@@ -2074,7 +2075,7 @@ async function calcInstallPosition() {
         install_belt_length: res.data.install_belt_length,
         work_angle: res.data.work_angle,
         work_belt_length: res.data.work_belt_length,
-        long_belt_length: res.data.long_belt_length,
+        theoretical_belt_length: res.data.theoretical_belt_length,
         arm_length: res.data.arm_length,
         stroke: res.data.stroke,
         nominal_angle: res.data.nominal_angle,

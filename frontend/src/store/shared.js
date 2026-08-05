@@ -55,7 +55,7 @@ export const sharedStore = reactive({
   installPositionResult: {
     install_tensioner_x: null, install_tensioner_y: null, install_angle: null,
     free_angle: null, install_belt_length: null, work_angle: null, work_belt_length: null,
-    long_belt_length: null, arm_length: null, stroke: null, nominal_angle: null, rotation: null,
+    theoretical_belt_length: null, arm_length: null, stroke: null, nominal_angle: null, rotation: null,
     required_rotation: null, difficult: null, messages: []
   },
   // 张紧器参数
