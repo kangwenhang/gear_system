@@ -457,15 +457,17 @@ class GearBaseService:
         """
         计算张紧器安装位置的皮带长度和张紧轮XY坐标。
 
-        安装位置 = 工作位置反向旋转总行程(stroke)度（远离皮带方向）。
-          - cw张紧器：工作旋转方向为角度增加，安装时反向（角度减少）
-            → install_angle = work_angle - stroke
-          - ccw张紧器：工作旋转方向为角度减少，安装时反向（角度增加）
-            → install_angle = work_angle + stroke
+        安装位置与自由位置在相反方向：
+          - 自由位置：远离工作方向（皮带路径变长，张紧器被皮带拉回工作位置）
+          - 安装位置：朝工作方向继续旋转（皮带路径变短，皮带松弛可套上）
+
+          即安装方向 = 工作方向（与自由方向相反）：
+            cw（工作方向=角度增加）：install_angle = work_angle + stroke
+            ccw（工作方向=角度减少）：install_angle = work_angle - stroke
 
         安装困难判断：
-          安装位置的皮带长度 < 长皮带长度（皮带最长时也无法在最大行程安装）
-          → 安装困难，提示需要更大行程或调整布局。
+          安装位置路径长度 > 长皮带长度 → 最长皮带也比路径短，套不上 → 困难
+          安装位置路径长度 <= 长皮带长度 → 皮带比路径长，松弛可套上 → 正常
 
         返回安装位置的张紧轮XY、安装角度(0-360°)、安装皮带长度、
         工作角度、臂长、是否安装困难、困难提示信息。
@@ -491,11 +493,11 @@ class GearBaseService:
         work_angle = self._normalize_angle(
             math.degrees(math.atan2(curr_y - pivot_y, curr_x - pivot_x)))
 
-        # 安装角度（反向旋转 stroke 度）
+        # 安装角度（与自由方向相反，即工作方向继续旋转 stroke 度）
         if rotation == 'cw':
-            install_angle = work_angle - stroke
-        else:  # ccw
             install_angle = work_angle + stroke
+        else:  # ccw
+            install_angle = work_angle - stroke
         install_angle = self._normalize_angle(install_angle)
 
         # 安装位置的张紧轮XY
@@ -503,7 +505,7 @@ class GearBaseService:
         install_x = pivot_x + arm_length * math.cos(install_rad)
         install_y = pivot_y + arm_length * math.sin(install_rad)
 
-        # 用安装位置的张紧轮替换工作位置，计算皮带长度
+        # 用安装位置的张紧轮替换工作位置，计算皮带路径长度
         pulleys_copy[tensioner_idx]['x'] = install_x
         pulleys_copy[tensioner_idx]['y'] = install_y
         install_belt_length = self.calc_belt_length_raw(pulleys_copy)
@@ -513,28 +515,26 @@ class GearBaseService:
             [{**p, 'x': float(p.get('x') or 0), 'y': float(p.get('y') or 0)} for p in pulleys]
         )
 
-        # 安装困难判断
+        # 安装困难判断：安装位置路径 > 长皮带长度 → 困难
         difficult = False
         messages = []
-        if long_belt_length is not None and install_belt_length < long_belt_length:
+        if long_belt_length is not None and install_belt_length > long_belt_length:
             difficult = True
-            gap = long_belt_length - install_belt_length
+            gap = install_belt_length - long_belt_length
             messages.append(
-                f'安装困难：安装位置皮带长度({install_belt_length:.2f}mm) '
-                f'小于长皮带长度({long_belt_length:.2f}mm)，'
-                f'差值 {gap:.2f}mm，皮带最长时也无法在最大行程({stroke}°)安装。'
+                f'安装困难：安装位置路径长度({install_belt_length:.2f}mm) '
+                f'大于长皮带长度({long_belt_length:.2f}mm)，'
+                f'差值 {gap:.2f}mm，最长皮带也无法套上。'
                 f'建议：增大张紧器总行程、调整枢轴位置或缩短皮带路径。'
             )
 
-        # 行程利用情况
-        # 计算达到长皮带长度所需的角度（从工作位置反向旋转）
-        # 通过线性近似估算
+        # 行程利用情况：达到长皮带长度所需旋转角度
         required_rotation = None
-        if install_belt_length != work_belt_length:
-            # 旋转 stroke 度，皮带长度变化 (install - work)
-            # 要达到 long_belt_length，需要变化 (long - work)
-            delta_per_deg = (install_belt_length - work_belt_length) / stroke if stroke != 0 else 0
+        if install_belt_length != work_belt_length and stroke != 0:
+            # 安装方向每旋转1度，路径变化量
+            delta_per_deg = (install_belt_length - work_belt_length) / stroke
             if abs(delta_per_deg) > 1e-9:
+                # 要让路径 = long_belt_length，需要变化 (long - work)
                 required_rotation = (long_belt_length - work_belt_length) / delta_per_deg
                 if required_rotation < 0:
                     required_rotation = 0
@@ -546,7 +546,12 @@ class GearBaseService:
                     )
 
         if not difficult:
-            messages.append('安装正常：安装位置皮带长度足够容纳长皮带。')
+            slack = long_belt_length - install_belt_length if long_belt_length is not None else 0
+            messages.append(
+                f'安装正常：安装位置路径长度({install_belt_length:.2f}mm) '
+                f'小于长皮带长度({long_belt_length:.2f}mm)，'
+                f'皮带松弛量 {slack:.2f}mm，可正常安装。'
+            )
 
         return {
             'install_tensioner_x': round(install_x, 4),
