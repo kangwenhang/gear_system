@@ -560,6 +560,11 @@
                 </el-form-item>
               </el-col>
               <el-col :span="4">
+                <el-form-item label="安装扭转角(°)">
+                  <el-input-number v-model="tensioner.automatic.install_angle" :precision="2" :controls="false" style="width:100%" placeholder="--" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="4">
                 <el-form-item label="总行程(°)">
                   <el-input-number v-model="tensioner.automatic.stroke" :precision="2" :controls="false" style="width:100%" placeholder="--" />
                 </el-form-item>
@@ -1093,6 +1098,58 @@
           </tbody>
         </table>
       </div>
+
+      <!-- 张紧器安装位置 -->
+      <div class="debug-section" v-if="installPositionResult.install_belt_length != null">
+        <div class="debug-title">张紧器安装位置（安装扭转角 {{ formatDebugNum(installPositionResult.torsion_angle) }}°，{{ installPositionResult.rotation === 'cw' ? '顺时针' : '逆时针' }}）</div>
+        <table class="debug-table">
+          <thead>
+            <tr><th>参数</th><th>值</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>安装位置皮带长度</td>
+              <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(installPositionResult.install_belt_length) }} mm</td>
+              <td>张紧器在安装位置时的皮带长度</td>
+            </tr>
+            <tr>
+              <td>安装位置张紧轮 X</td>
+              <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(installPositionResult.install_tensioner_x) }}</td>
+              <td>安装位置张紧轮X坐标</td>
+            </tr>
+            <tr>
+              <td>安装位置张紧轮 Y</td>
+              <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(installPositionResult.install_tensioner_y) }}</td>
+              <td>安装位置张紧轮Y坐标</td>
+            </tr>
+            <tr>
+              <td>安装臂角</td>
+              <td>{{ formatDebugNum(installPositionResult.install_angle) }}°</td>
+              <td>安装位置臂角度（0-360°）</td>
+            </tr>
+            <tr>
+              <td>基准臂角</td>
+              <td>{{ formatDebugNum(installPositionResult.base_angle) }}°</td>
+              <td>当前张紧轮（名义输入位置）臂角度（0-360°）</td>
+            </tr>
+            <tr>
+              <td>臂长</td>
+              <td>{{ formatDebugNum(installPositionResult.arm_length) }} mm</td>
+              <td>枢轴到张紧轮距离</td>
+            </tr>
+            <tr>
+              <td>安装扭转角</td>
+              <td>{{ formatDebugNum(installPositionResult.torsion_angle) }}°</td>
+              <td>名义输入位置到安装位置的旋转角度</td>
+            </tr>
+            <tr>
+              <td>旋转方向</td>
+              <td>{{ installPositionResult.rotation === 'cw' ? '顺时针 (cw)' : '逆时针 (ccw)' }}</td>
+              <td>从名义输入位置到安装位置的旋转方向</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </el-card>
 
   </div>
@@ -1110,6 +1167,7 @@ import { calcTensionerCoord as apiCalcTensionerCoord } from '../api/pulley.js'
 import { calcBeltLength as apiCalcBeltLength } from '../api/pulley.js'
 import { calcTensionerPosition as apiCalcTensionerPosition } from '../api/pulley.js'
 import { calcFreePosition as apiCalcFreePosition } from '../api/pulley.js'
+import { calcInstallPosition as apiCalcInstallPosition } from '../api/pulley.js'
 import { sharedStore } from '../store/shared.js'
 
 const formInfo = ref({
@@ -1149,6 +1207,7 @@ const tensioner = ref({
     tension_value: null,
     damping: 30,
     nominal_angle: 25,
+    install_angle: 25,
     stroke: 40,
     head_size: 50
   },
@@ -1330,6 +1389,7 @@ const longBeltResult = computed(() => sharedStore.longBeltResult || {})
 
 // 张紧器自由位置计算结果
 const freePositionResult = computed(() => sharedStore.freePositionResult || {})
+const installPositionResult = computed(() => sharedStore.installPositionResult || {})
 
 // 短皮带长度（计算值，用于显示）
 const shortBeltLength = computed(() => {
@@ -1771,9 +1831,10 @@ async function calcBeltLength() {
         total_arc: res.data.total_arc,
         details: res.data.details || []
       }
-      // 皮带长度计算成功后，计算短/长皮带张紧轮坐标和自由位置
+      // 皮带长度计算成功后，计算短/长皮带张紧轮坐标、自由位置和安装位置
       calcTensionerPosition()
       calcFreePosition()
+      calcInstallPosition()
     }
   } catch (e) {
     console.error('皮带长度计算失败:', e)
@@ -1929,6 +1990,64 @@ async function calcFreePosition() {
   }
 }
 
+// 计算张紧器安装位置的皮带长度和张紧轮XY坐标 - 调用后端API
+async function calcInstallPosition() {
+  const list = sharedStore.pulleys.filter(p => p.code && p.x != null && p.y != null)
+  const empty = {
+    install_tensioner_x: null, install_tensioner_y: null, install_angle: null,
+    install_belt_length: null, base_angle: null, arm_length: null,
+    torsion_angle: null, rotation: null
+  }
+
+  if (list.length < 2) {
+    sharedStore.installPositionResult = { ...empty }
+    return
+  }
+
+  const pivotX = tensioner.value.automatic.pivot_x
+  const pivotY = tensioner.value.automatic.pivot_y
+  if (pivotX == null || pivotY == null) {
+    sharedStore.installPositionResult = { ...empty }
+    return
+  }
+
+  const tensionerCode = list[list.length - 1].code
+  const installAngle = Number(tensioner.value.automatic.install_angle) || 0
+  const rotation = tensioner.value.automatic.rotation || 'cw'
+
+  try {
+    const res = await apiCalcInstallPosition({
+      pulleys: list.map(p => ({
+        code: p.code, name: p.name || '', type: p.type,
+        x: Number(p.x) || 0, y: Number(p.y) || 0,
+        groove_dia: p.groove_dia != null ? Number(p.groove_dia) : null,
+        flat_dia: p.flat_dia != null ? Number(p.flat_dia) : null,
+      })),
+      tensioner_code: tensionerCode,
+      pivot_x: Number(pivotX),
+      pivot_y: Number(pivotY),
+      install_angle: installAngle,
+      rotation: rotation,
+      belt_thickness: Number(beltParams.value.flat_to_pitch) || 0,
+      lining_thickness: Number(beltParams.value.pitch_to_effective) || 0,
+    })
+    if (res.data.success) {
+      sharedStore.installPositionResult = {
+        install_tensioner_x: res.data.install_tensioner_x,
+        install_tensioner_y: res.data.install_tensioner_y,
+        install_angle: res.data.install_angle,
+        install_belt_length: res.data.install_belt_length,
+        base_angle: res.data.base_angle,
+        arm_length: res.data.arm_length,
+        torsion_angle: res.data.torsion_angle,
+        rotation: res.data.rotation
+      }
+    }
+  } catch (e) {
+    console.error('张紧器安装位置计算失败:', e)
+  }
+}
+
 // 皮带公差变化时重新计算短/长皮带张紧轮坐标
 watch(
   () => beltParams.value.length_tolerance,
@@ -1956,6 +2075,16 @@ watch(
   () => {
     if (!isAutoCalculating.value && sharedStore.beltLengthResult.belt_length != null) {
       calcFreePosition()
+    }
+  }
+)
+
+// 安装扭转角或旋转方向变化时重新计算安装位置
+watch(
+  () => [tensioner.value.automatic.install_angle, tensioner.value.automatic.rotation],
+  () => {
+    if (!isAutoCalculating.value && sharedStore.beltLengthResult.belt_length != null) {
+      calcInstallPosition()
     }
   }
 )

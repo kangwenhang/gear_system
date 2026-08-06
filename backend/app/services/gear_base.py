@@ -449,3 +449,67 @@ class GearBaseService:
             'nominal_angle': round(nominal_angle, 4),
             'rotation': rotation
         }
+
+    def calc_install_position(self, pulleys: List[Dict], tensioner_code: str,
+                              pivot_x: float, pivot_y: float,
+                              install_angle: float, rotation: str) -> Dict:
+        """
+        计算张紧器安装位置的皮带长度和张紧轮XY坐标。
+
+        安装位置 = 当前张紧轮(名义输入位置)沿臂弧旋转安装扭转角(install_angle)到达的位置。
+        对应 Excel 报告页121行 install 区域：
+          F26 = F28(基准臂角) ± (C51-C50)(安装扭转角)
+        旋转方向(cw/ccw)决定角度变化方向：
+          - cw：安装臂角 = 基准臂角 - install_angle
+          - ccw：安装臂角 = 基准臂角 + install_angle
+
+        返回安装位置的张紧轮XY、安装臂角、皮带长度、基准臂角、臂长。
+        """
+        import copy
+        pulleys_copy = copy.deepcopy(pulleys)
+
+        tensioner_idx = None
+        for i, p in enumerate(pulleys_copy):
+            if p.get('code') == tensioner_code:
+                tensioner_idx = i
+                break
+        if tensioner_idx is None:
+            return {'error': f'未找到张紧轮: {tensioner_code}'}
+
+        curr_x = float(pulleys_copy[tensioner_idx].get('x') or 0)
+        curr_y = float(pulleys_copy[tensioner_idx].get('y') or 0)
+        arm_length = math.sqrt((curr_x - pivot_x) ** 2 + (curr_y - pivot_y) ** 2)
+        if arm_length < 1e-6:
+            return {'error': '臂长为零'}
+
+        # 基准臂角（当前张紧轮位置，0-360°）
+        base_angle = self._normalize_angle(
+            math.degrees(math.atan2(curr_y - pivot_y, curr_x - pivot_x)))
+
+        # 安装臂角
+        if rotation == 'cw':
+            install_arm_angle = base_angle - install_angle
+        else:  # ccw
+            install_arm_angle = base_angle + install_angle
+        install_arm_angle = self._normalize_angle(install_arm_angle)
+
+        # 安装位置的张紧轮XY
+        install_rad = math.radians(install_arm_angle)
+        install_x = pivot_x + arm_length * math.cos(install_rad)
+        install_y = pivot_y + arm_length * math.sin(install_rad)
+
+        # 用安装位置的张紧轮替换，计算皮带长度
+        pulleys_copy[tensioner_idx]['x'] = install_x
+        pulleys_copy[tensioner_idx]['y'] = install_y
+        install_belt_length = self.calc_belt_length_raw(pulleys_copy)
+
+        return {
+            'install_tensioner_x': round(install_x, 4),
+            'install_tensioner_y': round(install_y, 4),
+            'install_angle': round(install_arm_angle, 4),
+            'install_belt_length': round(install_belt_length, 4),
+            'base_angle': round(base_angle, 4),
+            'arm_length': round(arm_length, 4),
+            'torsion_angle': round(install_angle, 4),
+            'rotation': rotation
+        }
