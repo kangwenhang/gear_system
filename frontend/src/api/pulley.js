@@ -58,6 +58,43 @@ export const calcInstallPosition = (data) => {
   return api.post('/calc-install-position', data)
 }
 
+// 生成 Excel 报告（基于 REPORT.xlsx 模板）
+export const generateReport = (data) => {
+  return api.post('/generate-report', data, { responseType: 'blob' })
+}
+
+// ===== 项目管理 API =====
+
+// 保存项目
+export const saveProject = (data) => api.post('/projects', data)
+
+// 搜索/列出项目
+export const listProjects = (params) => api.get('/projects', { params })
+
+// 获取单个项目（按 ID）
+export const getProject = (id) => api.get(`/projects/${id}`)
+
+// 获取单个项目（按文件编号+版本）
+export const getProjectByFile = (fileNo, version) => api.get('/projects/by-file', { params: { file_no: fileNo, version } })
+
+// 更新项目
+export const updateProject = (id, data) => api.put(`/projects/${id}`, data)
+
+// 删除项目
+export const deleteProject = (id) => api.delete(`/projects/${id}`)
+
+// 导出项目 Excel
+export const exportProject = (id) => api.post(`/projects/${id}/export`, {}, { responseType: 'blob' })
+
+// 获取版本列表
+export const listVersions = () => api.get('/projects/versions')
+
+// 获取客户列表
+export const listCustomers = () => api.get('/projects/customers')
+
+// 获取下一个文件编号
+export const getNextFileNo = (version) => api.get('/projects/next-file-no', { params: { version } })
+
 // 集中导出（方便在页面中一次性引入）
 export default {
   getBeltOptions,
@@ -69,5 +106,6 @@ export default {
   calcBeltLength,
   calcTensionerPosition,
   calcFreePosition,
-  calcInstallPosition
+  calcInstallPosition,
+  generateReport
 }

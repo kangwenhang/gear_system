@@ -12,8 +12,23 @@ if (-not $PYTHON) { $PYTHON = "python" }
 
 if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null }
 
+# 释放指定端口（杀掉占用进程）
+function Free-Port($port, $desc) {
+    $conns = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
+    if ($conns) {
+        $pids = $conns | ForEach-Object { $_.OwningProcess } | Select-Object -Unique
+        foreach ($pid in $pids) {
+            try { Stop-Process -Id $pid -Force -ErrorAction Stop; Write-Host "Killed PID $pid ($desc port $port)" -ForegroundColor Yellow } catch {}
+        }
+    }
+}
+
 switch ($args[0]) {
     "start" {
+        # 先释放端口
+        Free-Port $BACKEND_PORT "Backend"
+        Free-Port $FRONTEND_PORT "Frontend"
+        Start-Sleep -Seconds 1
         Write-Host "Starting backend..." -ForegroundColor Cyan
         $p1 = Start-Process -FilePath $PYTHON -ArgumentList "-m","uvicorn","app.main:app","--host","0.0.0.0","--port","$BACKEND_PORT","--reload" -WorkingDirectory $BACKEND_DIR -WindowStyle Hidden -RedirectStandardOutput "$LOG_DIR\backend.log" -PassThru
 

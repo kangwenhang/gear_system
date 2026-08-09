@@ -6,12 +6,18 @@ from fastapi.responses import FileResponse
 from app.api.belts import router as belts_router
 from app.api.calculate import router as calculate_router
 from app.api.alignment import router as alignment_router
+from app.api.report import router as report_router
+from app.api.projects import router as projects_router
 
 app = FastAPI(title="Gear System API")
 
 app.include_router(belts_router, prefix="/api", tags=["Belts"])
 app.include_router(calculate_router, prefix="/api", tags=["Calculate"])
 app.include_router(alignment_router, prefix="/api", tags=["Alignment"])
+app.include_router(report_router, prefix="/api", tags=["Report"])
+app.include_router(projects_router, prefix="/api", tags=["Projects"])
+
+# ----
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend_dist"

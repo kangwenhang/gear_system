@@ -1,5 +1,5 @@
 <template>
-  <div class="wrap" ref="wrapRef"
+  <div class="wrap" :class="{ 'static-mode': staticMode }" ref="wrapRef"
     @wheel.prevent="handleWheel"
     @mousedown="onPanStart"
     @mousemove="onPanMove"
@@ -9,7 +9,7 @@
     @touchmove.prevent="onTouchMove"
     @touchend="onPanEnd"
   >
-    <div class="zoom-controls">
+    <div class="zoom-controls" v-if="!staticMode">
       <button type="button" @click="zoomIn" :disabled="zoom >= maxZoom">+</button>
       <span>{{ zoomLevel }}%</span>
       <button type="button" @click="zoomOut" :disabled="zoom <= minZoom">-</button>
@@ -17,7 +17,7 @@
     </div>
     
     <div 
-      v-if="hoveredPulley" 
+      v-if="hoveredPulley && !staticMode" 
       class="tooltip"
       :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }"
     >
@@ -53,6 +53,9 @@
           <rect :x="pad" :y="pad" :width="w - 2*pad" :height="h - 2*pad"/>
         </clipPath>
       </defs>
+
+      <!-- 外方框（坐标轴区域边框） -->
+      <rect :x="pad" :y="pad" :width="w - 2*pad" :height="h - 2*pad" fill="none" stroke="#333" stroke-width="2.5"/>
       
       <!-- 网格（只显示在坐标轴内部，应用裁剪） -->
       <g v-if="showGrid" class="grid" clip-path="url(#axisClip)">
@@ -260,7 +263,9 @@ const props = defineProps({
   tensionerData: Object,
   forceDirections: Object,
   beltParams: Object,
-  contactParams: Object
+  contactParams: Object,
+  // 静态模式：用于报告页打印，隐藏缩放控件并禁用交互
+  staticMode: Boolean
 })
 
 const wrapRef = ref(null)
@@ -330,6 +335,7 @@ const resetZoom = () => {
 
 // 鼠标滚轮缩放（以鼠标位置为锚点）
 const handleWheel = (event) => {
+  if (props.staticMode) return
   const rect = wrapRef.value?.getBoundingClientRect()
   if (!rect) return
 
@@ -359,6 +365,7 @@ const handleWheel = (event) => {
 
 // 拖拽平移 - 鼠标
 function onPanStart(e) {
+  if (props.staticMode) return
   if (e.button !== 0) return
   isPanning.value = true
   panStartX.value = e.clientX
@@ -390,6 +397,7 @@ function onPanEnd() {
 
 // 拖拽平移 - 触摸
 function onTouchStart(e) {
+  if (props.staticMode) return
   if (e.touches.length === 1) {
     isPanning.value = true
     panStartX.value = e.touches[0].clientX
@@ -807,6 +815,7 @@ const formatMM = (px, axis) => {
 
 // hover 相关方法
 function onPulleyHover(pulley, event) {
+  if (props.staticMode) return
   hoveredPulley.value = pulley
   tooltipX.value = event.clientX - wrapRef.value.getBoundingClientRect().left + 15
   tooltipY.value = event.clientY - wrapRef.value.getBoundingClientRect().top + 15
@@ -878,6 +887,29 @@ function formatDia(pulley) {
   user-select: none;
   -webkit-user-select: none;
   min-height: 300px;
+}
+
+/* 静态模式（报告打印）：无交互光标、无 hover 高亮 */
+.wrap.static-mode {
+  cursor: default;
+  background: #fff;
+  padding: 8px;
+  min-height: auto;
+}
+
+.static-mode svg.diagram {
+  border: none;
+  border-radius: 0;
+  max-height: none;
+}
+
+.static-mode .pulley-circle {
+  cursor: default;
+  transition: none;
+}
+
+.static-mode .pulley-circle:hover {
+  stroke-width: 2;
 }
 
 .wrap:active {

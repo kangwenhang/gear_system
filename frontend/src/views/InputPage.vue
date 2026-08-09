@@ -29,7 +29,7 @@
         <el-row :gutter="16">
           <el-col :span="4">
             <el-form-item label="文件编号">
-              <el-input v-model="formInfo.fileNo" placeholder="请输入" clearable />
+              <el-input v-model="displayFileNo" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="4">
@@ -733,6 +733,14 @@
               <el-input-number v-model="beltParams.height" :precision="2" :controls="false" style="width:100%" placeholder="选择厂家自动填入" />
             </el-form-item>
           </el-col>
+          <el-col :span="4">
+            <el-form-item label="最后套皮带">
+              <el-select v-model="beltParams.last_install_type" placeholder="请选择" style="width:100%">
+                <el-option label="槽轮" value="groove" />
+                <el-option label="平轮" value="flat" />
+              </el-select>
+            </el-form-item>
+          </el-col>
         </el-row>
       </el-form>
     </el-card>
@@ -757,6 +765,7 @@
             <tr>
               <th>参数</th>
               <th>值</th>
+              
               <th>说明</th>
             </tr>
           </thead>
@@ -784,6 +793,7 @@
             <tr>
               <td>枢轴方向 (Q)</td>
               <td>{{ formatDebugNum(tensionerGeometry?.pivotAngle) }}°</td>
+
               <td>从张紧轮指向枢轴</td>
             </tr>
             <tr>
@@ -794,6 +804,7 @@
             <tr>
               <td>力臂</td>
               <td>{{ formatDebugNum(tensioner.automatic.arm_length && tensionerGeometry?.hubloadAngle ? tensioner.automatic.arm_length * Math.sin(tensionerGeometry.hubloadAngle * Math.PI / 180) : null) }} mm</td>
+
               <td>臂长 × sin(包角中点)</td>
             </tr>
           </tbody>
@@ -807,6 +818,7 @@
             <tr>
               <th>参数</th>
               <th>值</th>
+              
               <th>说明</th>
             </tr>
           </thead>
@@ -850,6 +862,7 @@
             <tr>
               <td>合力 (Hubload)</td>
               <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(calcHubload) }} N</td>
+
               <td>2 × 张力 × cos((180-包角)/2)</td>
             </tr>
             <tr>
@@ -885,6 +898,7 @@
             <tr>
               <th>参数</th>
               <th>值</th>
+              
               <th>说明</th>
             </tr>
           </thead>
@@ -897,6 +911,7 @@
             <tr>
               <td>直线段总长</td>
               <td>{{ formatDebugNum(beltLengthResult.total_straight) }} mm</td>
+
               <td>Σ(C × cos(E))</td>
             </tr>
             <tr>
@@ -1113,6 +1128,28 @@
               <td>张紧器在安装位置时的皮带长度</td>
             </tr>
             <tr>
+              <td>理论皮带长度</td>
+              <td style="color: #67c23a; font-weight: 600">{{ formatDebugNum(installTheoreticalLength) }} mm</td>
+              <td>安装位置坐标 + 修正节圆直径计算的理论皮带长度{{ installPositionResult.is_flat_tensioner ? '（平轮修正 +' + formatDebugNum(2 * installPositionResult.belt_height) + ' mm）' : '' }}</td>
+            </tr>
+            <tr>
+              <td>计算皮带长度</td>
+              <td style="color: #e6a23c; font-weight: 600">{{ formatDebugNum(installCalculatedLength) }} mm</td>
+              <td>安装位置算出的皮带长度</td>
+            </tr>
+            <tr>
+              <td>长度差值（理论 - 计算）</td>
+              <td :style="{ color: installLengthDiff > 0 ? '#67c23a' : '#f56c6c', fontWeight: 600 }">{{ formatDebugNum(installLengthDiff) }} mm</td>
+              <td>正值表示计算长度小于理论，皮带有余量</td>
+            </tr>
+            <tr>
+              <td>安装判断</td>
+              <td v-if="isEasyToInstall === null">-</td>
+              <td v-else-if="isEasyToInstall" style="color: #67c23a; font-weight: 700">好安装</td>
+              <td v-else style="color: #f56c6c; font-weight: 700">不好安装</td>
+              <td>计算皮带长度 &lt; 理论皮带长度 → 好安装</td>
+            </tr>
+            <tr>
               <td>安装位置张紧轮 X</td>
               <td style="color: #409eff; font-weight: 600">{{ formatDebugNum(installPositionResult.install_tensioner_x) }}</td>
               <td>安装位置张紧轮X坐标</td>
@@ -1168,48 +1205,123 @@ import { calcBeltLength as apiCalcBeltLength } from '../api/pulley.js'
 import { calcTensionerPosition as apiCalcTensionerPosition } from '../api/pulley.js'
 import { calcFreePosition as apiCalcFreePosition } from '../api/pulley.js'
 import { calcInstallPosition as apiCalcInstallPosition } from '../api/pulley.js'
+import { getNextFileNo } from '../api/pulley.js'
 import { sharedStore } from '../store/shared.js'
 
 const formInfo = ref({
-  fileNo: '',
-  customer: '',
-  project: '',
-  cylinders: '',
-  power: '',
+  customer: sharedStore.formInfo.customer || '',
+  project: sharedStore.formInfo.project || '',
+  cylinders: sharedStore.formInfo.cylinders || '',
+  power: sharedStore.formInfo.power || '',
   updateDesc: '',
-  issueDesc: '',
-  version: 1
+  issueDesc: sharedStore.formInfo.problem_statement || '',
+  version: sharedStore.formInfo.version || 1
 })
+
+// 自动生成文件编号（仅当 file_no 为空时触发，加载项目时保留已有编号）
+async function autoGenerateFileNo() {
+  const fn = (sharedStore.formInfo.file_no || '').replace(/-\d{2}$/, '')
+  // 已有有效编号 → 保留（加载项目场景）
+  if (fn && /^\d{10}$/.test(fn)) return
+
+  try {
+    const ver = String(formInfo.value.version || 1).padStart(2, '0')
+    const res = await getNextFileNo(ver)
+    if (res?.data?.file_no) {
+      sharedStore.formInfo.file_no = res.data.file_no
+    }
+  } catch (e) {
+    console.warn('自动生成文件编号失败:', e)
+  }
+}
+autoGenerateFileNo()
+
+// 文件编号显示名：{文件编号}-{版本}，自动响应版本变化
+const displayFileNo = computed(() => {
+  const fn = sharedStore.formInfo.file_no || ''
+  const ver = String(formInfo.value.version || 1).padStart(2, '0')
+  return fn ? `${fn}-${ver}` : ''
+})
+
+// 标记是否正在从 store 加载（防止 watch 循环）
+let isLoadingFromStore = false
 
 const beltParams = ref({
-  belt_type: 'EPDM(Polyester)',
-  manufacturer: 'Gates',
-  belt_pk: '8',
-  elongation_rate: 0.8,
-  length_tolerance: '6',
-  life_coefficient: 2.3,
-  flat_to_pitch: sharedStore.beltParams.flat_to_pitch ?? null,
-  pitch_to_effective: sharedStore.beltParams.pitch_to_effective ?? null,
-  height: null
+  belt_type: '',
+  manufacturer: '',
+  belt_pk: '',
+  elongation_rate: null,
+  length_tolerance: null,
+  life_coefficient: null,
+  flat_to_pitch: null,
+  pitch_to_effective: null,
+  height: null,
+  last_install_type: ''
 })
 
+// 同步 beltParams 到 sharedStore（供保存使用）
+watch(
+  () => ({
+    manufacturer: beltParams.value.manufacturer,
+    length_tolerance: beltParams.value.length_tolerance,
+    life_coefficient: beltParams.value.life_coefficient,
+    last_install_type: beltParams.value.last_install_type,
+    belt_type: beltParams.value.belt_type,
+    belt_pk: beltParams.value.belt_pk,
+    elongation_rate: beltParams.value.elongation_rate
+  }),
+  (v) => {
+    if (isLoadingFromStore) return
+    Object.assign(sharedStore.beltFullParams, {
+      manufacturer: v.manufacturer,
+      length_tolerance: v.length_tolerance,
+      life_coefficient: v.life_coefficient,
+      last_install_type: v.last_install_type,
+      belt_type: v.belt_type,
+      belt_pk: v.belt_pk,
+      stretch_wear_allow: v.elongation_rate
+    })
+  },
+  { deep: true }
+)
+
+// 加载项目时从 store 同步到 local
+function syncBeltParamsFromStore() {
+  const bfp = sharedStore.beltFullParams
+  const bp = sharedStore.beltParams
+  beltParams.value = {
+    belt_type: bfp.belt_type || '',
+    manufacturer: bfp.manufacturer || '',
+    belt_pk: String(bfp.ribs || ''),
+    elongation_rate: bfp.stretch_wear_allow ?? null,
+    length_tolerance: bfp.length_tolerance ?? null,
+    life_coefficient: bfp.life_coefficient ?? null,
+    flat_to_pitch: bp.flat_to_pitch ?? null,
+    pitch_to_effective: bp.pitch_to_effective ?? null,
+    height: bfp.belt_height ?? null,
+    last_install_type: bfp.last_install_type || ''
+  }
+}
+syncBeltParamsFromStore()
+
+const st = sharedStore.tensioner
 const tensioner = ref({
-  type: 'automatic',
+  type: st.type === 'Manual' ? 'manual' : 'automatic',
   automatic: {
     rotation: 'cw',
-    pivot_x: 120,
-    pivot_y: 20,
-    arm_length: null,
-    work_angle: null,
-    spring_stiffness: 0.32,
-    valueType: 'torque',
-    torque: 32,
-    tension_value: null,
-    damping: 30,
-    nominal_angle: 25,
-    install_angle: 25,
-    stroke: 40,
-    head_size: 50
+    pivot_x: st.pivot_x ?? null,
+    pivot_y: st.pivot_y ?? null,
+    arm_length: st.arm_length ?? null,
+    work_angle: st.angle ?? null,
+    spring_stiffness: st.spring_stiffness ?? null,
+    valueType: st.design_tension ? 'tension' : 'torque',
+    torque: st.torque ?? null,
+    tension_value: st.design_tension ?? null,
+    damping: null,
+    nominal_angle: null,
+    install_angle: null,
+    stroke: null,
+    head_size: null
   },
   manual: {
     start_x: null,
@@ -1227,6 +1339,45 @@ const calcMode = ref('3')
 
 // 标记是否正在进行自动计算，用于阻止watch循环触发
 const isAutoCalculating = ref(false)
+
+// 加载项目时：store 中 tensioner 被外部更新 → 同步到 local tensioner
+watch(
+  () => [sharedStore.tensioner.pivot_x, sharedStore.tensioner.pivot_y, sharedStore.tensioner.type],
+  ([px, py, tp]) => {
+    // 防止 local → store 触发的反向同步
+    if (isAutoCalculating.value) return
+    if (tp === 'Automatic' || tp === undefined) {
+      tensioner.value.type = 'automatic'
+      tensioner.value.automatic.pivot_x = px ?? null
+      tensioner.value.automatic.pivot_y = py ?? null
+      tensioner.value.automatic.arm_length = sharedStore.tensioner.arm_length ?? null
+      tensioner.value.automatic.work_angle = sharedStore.tensioner.angle ?? null
+      tensioner.value.automatic.spring_stiffness = sharedStore.tensioner.spring_stiffness ?? null
+      tensioner.value.automatic.torque = sharedStore.tensioner.torque ?? null
+      tensioner.value.automatic.tension_value = sharedStore.tensioner.design_tension ?? null
+      tensioner.value.automatic.valueType = sharedStore.tensioner.design_tension ? 'tension' : 'torque'
+      tensioner.value.automatic.damping = sharedStore.tensioner.damping ?? null
+      tensioner.value.automatic.nominal_angle = sharedStore.tensioner.nominal_angle ?? null
+      tensioner.value.automatic.install_angle = sharedStore.tensioner.install_angle ?? null
+      tensioner.value.automatic.stroke = sharedStore.tensioner.stroke ?? null
+      tensioner.value.automatic.head_size = sharedStore.tensioner.head_size ?? null
+    }
+  },
+  { immediate: true }
+)
+
+// 反向同步：local tensioner 修改后同步到 sharedStore (供保存用)
+watch(
+  () => ({ ...tensioner.value.automatic }),
+  (auto) => {
+    sharedStore.tensioner.damping = auto.damping ?? null
+    sharedStore.tensioner.nominal_angle = auto.nominal_angle ?? null
+    sharedStore.tensioner.install_angle = auto.install_angle ?? null
+    sharedStore.tensioner.stroke = auto.stroke ?? null
+    sharedStore.tensioner.head_size = auto.head_size ?? null
+  },
+  { deep: true }
+)
 
 // 计算禁用状态：根据计算模式决定哪些输入框禁用
 const disablePivotXY = computed(() => {
@@ -1390,6 +1541,30 @@ const longBeltResult = computed(() => sharedStore.longBeltResult || {})
 // 张紧器自由位置计算结果
 const freePositionResult = computed(() => sharedStore.freePositionResult || {})
 const installPositionResult = computed(() => sharedStore.installPositionResult || {})
+
+// 安装位置：理论皮带长度（来自后端，4个带轮在工作位置的皮带长度）
+const installTheoreticalLength = computed(() => {
+  return installPositionResult.value.theoretical_belt_length
+})
+
+// 安装位置：计算皮带长度（安装位置算出的皮带长度）
+const installCalculatedLength = computed(() => installPositionResult.value.install_belt_length)
+
+// 安装位置：好安装判断（计算皮带长度 < 理论皮带长度 → 好安装）
+const isEasyToInstall = computed(() => {
+  const calc = installCalculatedLength.value
+  const theo = installTheoreticalLength.value
+  if (calc == null || theo == null) return null
+  return calc < theo
+})
+
+// 安装位置：理论与计算的差值（理论 - 计算，正值表示有余量）
+const installLengthDiff = computed(() => {
+  const calc = installCalculatedLength.value
+  const theo = installTheoreticalLength.value
+  if (calc == null || theo == null) return null
+  return theo - calc
+})
 
 // 短皮带长度（计算值，用于显示）
 const shortBeltLength = computed(() => {
@@ -1679,7 +1854,33 @@ const tableData = ref(
         inertia: p.inertia ?? null,
         service_factor: p.service_factor ?? null
       }))
-    : [createRow(), createRow()]
+    : [createRow(), createRow(), createRow()]
+)
+
+// 加载项目时：store 被外部更新 → 同步到 tableData
+watch(
+  () => sharedStore.pulleys.map(p => p.code),
+  (newCodes, oldCodes) => {
+    if (isLoadingFromStore) return
+    if (!newCodes?.length && !oldCodes?.length) return
+    isLoadingFromStore = true
+    tableData.value = sharedStore.pulleys.map(p => ({
+      name: p.name === 'NA' ? '' : (p.name || ''),
+      code: p.code === 'NA' ? '' : (p.code || ''),
+      x: p.x ?? null,
+      y: p.y ?? null,
+      flat_dia: p.flat_dia ?? null,
+      groove_dia: p.groove_dia ?? null,
+      type: p.type === 'none' ? 'groove' : (p.type || 'groove'),
+      inertia: (p.inertia && p.inertia !== 0) ? p.inertia : null,
+      service_factor: (p.service_factor && p.service_factor !== 1) ? p.service_factor : null
+    }))
+    // 至少保留 3 行
+    while (tableData.value.length < 3) tableData.value.push(createRow())
+    // 下一帧重置标记
+    setTimeout(() => { isLoadingFromStore = false }, 0)
+  },
+  { deep: true, immediate: true }
 )
 
 // 判断张紧轮是否已有XY值
@@ -1738,11 +1939,11 @@ watch(
 watch(
   () => tableData.value.map(p => ({ code: p.code, name: p.name, x: p.x, y: p.y, flat_dia: p.flat_dia, groove_dia: p.groove_dia, type: p.type, inertia: p.inertia, service_factor: p.service_factor })),
   (newPulleys) => {
-    const filtered = newPulleys.filter(p => p.code)
+    if (isLoadingFromStore) return  // 跳过外部加载触发的同步
     // 保留已有带轮的对齐度相关字段（centerHeightDiff, perpendicularity 等）
     const existingMap = new Map(sharedStore.pulleys.map(p => [p.code, p]))
-    const merged = filtered.map(p => {
-      const existing = existingMap.get(p.code)
+    const merged = newPulleys.map(p => {
+      const existing = p.code ? existingMap.get(p.code) : null
       return existing ? { ...existing, ...p } : p
     })
     sharedStore.pulleys.splice(0, sharedStore.pulleys.length, ...merged)
@@ -1756,6 +1957,23 @@ watch(
   (val) => {
     sharedStore.beltParams.flat_to_pitch = val.flat_to_pitch
     sharedStore.beltParams.pitch_to_effective = val.pitch_to_effective
+  },
+  { deep: true, immediate: true }
+)
+
+// 显示名 fileNo-version 由 computed displayFileNo 自动响应，无需 watch
+
+// 同步项目表单信息到共享 store（供保存项目使用）
+watch(
+  () => ({ ...formInfo.value }),
+  (val) => {
+    // file_no 由 autoGenerateFileNo / 加载项目时设置，这里不同步（避免覆盖）
+    sharedStore.formInfo.customer = val.customer || ''
+    sharedStore.formInfo.project = val.project || ''
+    sharedStore.formInfo.cylinders = val.cylinders || null
+    sharedStore.formInfo.power = val.power || null
+    sharedStore.formInfo.problem_statement = val.issueDesc || ''
+    sharedStore.formInfo.version = String(val.version || 1).padStart(2, '0')
   },
   { deep: true, immediate: true }
 )
@@ -1831,10 +2049,10 @@ async function calcBeltLength() {
         total_arc: res.data.total_arc,
         details: res.data.details || []
       }
-      // 皮带长度计算成功后，计算短/长皮带张紧轮坐标、自由位置和安装位置
-      calcTensionerPosition()
-      calcFreePosition()
-      calcInstallPosition()
+      // 皮带长度计算成功后，顺序计算短/长皮带张紧轮坐标、自由位置和安装位置
+      await calcTensionerPosition()
+      await calcFreePosition()
+      await calcInstallPosition()
     }
   } catch (e) {
     console.error('皮带长度计算失败:', e)
@@ -2015,14 +2233,28 @@ async function calcInstallPosition() {
   const installAngle = Number(tensioner.value.automatic.install_angle) || 0
   const rotation = tensioner.value.automatic.rotation || 'cw'
 
+  // G178理论皮带长度使用短皮带位置的张紧轮坐标（对应Excel G178块TEN坐标）
+  const shortTensionerX = sharedStore.shortBeltResult?.tensioner_x
+  const shortTensionerY = sharedStore.shortBeltResult?.tensioner_y
+
+  // 工作位置的张紧轮坐标（表格原始值，用于计算安装位置的基准臂角）
+  const workTensioner = list.find(p => p.code === tensionerCode)
+  const workTensionerX = workTensioner ? Number(workTensioner.x) : null
+  const workTensionerY = workTensioner ? Number(workTensioner.y) : null
+
   try {
-    const res = await apiCalcInstallPosition({
-      pulleys: list.map(p => ({
-        code: p.code, name: p.name || '', type: p.type,
-        x: Number(p.x) || 0, y: Number(p.y) || 0,
-        groove_dia: p.groove_dia != null ? Number(p.groove_dia) : null,
-        flat_dia: p.flat_dia != null ? Number(p.flat_dia) : null,
-      })),
+    const payload = {
+      pulleys: list.map(p => {
+        const useShortCoord = p.code === tensionerCode
+          && shortTensionerX != null && shortTensionerY != null
+        return {
+          code: p.code, name: p.name || '', type: p.type,
+          x: useShortCoord ? Number(shortTensionerX) : (Number(p.x) || 0),
+          y: useShortCoord ? Number(shortTensionerY) : (Number(p.y) || 0),
+          groove_dia: p.groove_dia != null ? Number(p.groove_dia) : null,
+          flat_dia: p.flat_dia != null ? Number(p.flat_dia) : null,
+        }
+      }),
       tensioner_code: tensionerCode,
       pivot_x: Number(pivotX),
       pivot_y: Number(pivotY),
@@ -2030,7 +2262,12 @@ async function calcInstallPosition() {
       rotation: rotation,
       belt_thickness: Number(beltParams.value.flat_to_pitch) || 0,
       lining_thickness: Number(beltParams.value.pitch_to_effective) || 0,
-    })
+      belt_height: Number(beltParams.value.height) || 0,
+      last_install_type: beltParams.value.last_install_type || 'groove',
+      work_tensioner_x: workTensionerX,
+      work_tensioner_y: workTensionerY,
+    }
+    const res = await apiCalcInstallPosition(payload)
     if (res.data.success) {
       sharedStore.installPositionResult = {
         install_tensioner_x: res.data.install_tensioner_x,
@@ -2040,7 +2277,10 @@ async function calcInstallPosition() {
         base_angle: res.data.base_angle,
         arm_length: res.data.arm_length,
         torsion_angle: res.data.torsion_angle,
-        rotation: res.data.rotation
+        rotation: res.data.rotation,
+        theoretical_belt_length: res.data.theoretical_belt_length,
+        is_flat_tensioner: res.data.is_flat_tensioner,
+        belt_height: res.data.belt_height
       }
     }
   } catch (e) {
@@ -2079,9 +2319,30 @@ watch(
   }
 )
 
+// 当stroke或nominal_angle变化时，自动计算install_angle = stroke - nominal_angle
+watch(
+  () => [tensioner.value.automatic.stroke, tensioner.value.automatic.nominal_angle],
+  ([newStroke, newNominal]) => {
+    if (newStroke != null && newNominal != null) {
+      const calc = Number(newStroke) - Number(newNominal)
+      tensioner.value.automatic.install_angle = Number(calc.toFixed(2))
+    }
+  }
+)
+
 // 安装扭转角或旋转方向变化时重新计算安装位置
 watch(
   () => [tensioner.value.automatic.install_angle, tensioner.value.automatic.rotation],
+  () => {
+    if (!isAutoCalculating.value && sharedStore.beltLengthResult.belt_length != null) {
+      calcInstallPosition()
+    }
+  }
+)
+
+// 最后套皮带类型变化时重新计算安装位置（影响理论皮带长度）
+watch(
+  () => beltParams.value.last_install_type,
   () => {
     if (!isAutoCalculating.value && sharedStore.beltLengthResult.belt_length != null) {
       calcInstallPosition()

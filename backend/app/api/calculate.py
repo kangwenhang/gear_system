@@ -62,6 +62,10 @@ class InstallPositionRequest(BaseModel):
     rotation: str = 'cw'             # 旋转方向 cw/ccw
     belt_thickness: Optional[float] = 1.2
     lining_thickness: Optional[float] = 1.0
+    belt_height: Optional[float] = 0.0  # 皮带高度（对应Excel C62，用于理论皮带长度计算）
+    last_install_type: str = 'groove'   # 最后套皮带类型（对应Excel初始输入!L56）：groove=槽轮/flat=平轮
+    work_tensioner_x: Optional[float] = None  # 工作位置张紧轮X（用于基准臂角计算）
+    work_tensioner_y: Optional[float] = None  # 工作位置张紧轮Y（用于基准臂角计算）
 
 @router.post("/calculate")
 def calculate(req: CalculateRequest):
@@ -203,7 +207,11 @@ def calc_install_position(req: InstallPositionRequest):
             pivot_x=req.pivot_x,
             pivot_y=req.pivot_y,
             install_angle=req.install_angle,
-            rotation=req.rotation
+            rotation=req.rotation,
+            belt_height=req.belt_height or 0.0,
+            last_install_type=req.last_install_type,
+            work_tensioner_x=req.work_tensioner_x,
+            work_tensioner_y=req.work_tensioner_y
         )
         if 'error' in result:
             raise HTTPException(status_code=400, detail=result['error'])

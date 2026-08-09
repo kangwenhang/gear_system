@@ -5,6 +5,7 @@
          = Σ(C_i × cos(E_i)) + Σ(S_i × K_i × π / 360)
 """
 
+import copy
 import math
 from typing import List, Dict, Optional
 
@@ -169,7 +170,7 @@ class GearBaseService:
             }
         """
         # 过滤有效带轮
-        lst = [p for p in pulleys if p.get('code') and p.get('x') is not None and p.get('y') is not None]
+        lst = [p for p in pulleys if p.get('code') and p.get('x') is not None and p.get('y') is not None and p.get('code') != 'NA']
         n = len(lst)
         if n < 2:
             return {'belt_length': 0, 'details': [], 'segments': [], 'arcs': []}
@@ -267,21 +268,41 @@ class GearBaseService:
             'details': details,
         }
 
-    def calc_belt_length_raw(self, pulleys: List[Dict]) -> float:
-        """计算皮带总长（原始浮点值），供求解器使用"""
-        lst = [p for p in pulleys if p.get('code') and p.get('x') is not None and p.get('y') is not None]
+    def calc_belt_length_raw(self, pulleys: List[Dict], k_offset: float = 0) -> float:
+        """计算皮带总长（原始浮点值），供求解器使用
+
+        参数:
+            k_offset: 节圆直径修正量。非零时，槽轮 K-offset，平轮 K+offset。
+                      对应 Excel G178 块的 K±4.6 修正（4.6 = height + flat_to_pitch - pitch_to_effective）。
+        """
+        lst = [p for p in pulleys if p.get('code') and p.get('x') is not None and p.get('y') is not None and p.get('code') != 'NA']
         n = len(lst)
         if n < 2:
             return 0.0
         k_values = [self.calc_pitch_diameter(p) for p in lst]
+        # 保留原始K值副本（用于NA闭合段，对应Excel $K$5绝对引用未修正K）
+        k_values_orig = list(k_values)
+        if k_offset != 0:
+            for idx, p in enumerate(lst):
+                if p.get('type') == 'flat':
+                    k_values[idx] += k_offset
+                else:
+                    k_values[idx] -= k_offset
         c_values, e_values, g_values, i_values = [], [], [], []
         for idx in range(n):
             curr = lst[idx]
-            next_p = lst[(idx + 1) % n]
+            next_idx = (idx + 1) % n
+            next_p = lst[next_idx]
             c = self.calc_center_distance(curr, next_p)
             c_values.append(c)
+            # NA闭合段（最后一个→第一个）：next用原始K（对应Excel $K$5未修正）
+            # Excel G178块E183 = -ASIN((K170 + $K$5)/(2*C183))，$K$5是CRK原始K未修正
+            if k_offset != 0 and idx == n - 1:
+                k_next = k_values_orig[next_idx]
+            else:
+                k_next = k_values[next_idx]
             e_values.append(self.calc_upper_tangent_angle(
-                curr, next_p, k_values[idx], k_values[(idx + 1) % n], c))
+                curr, next_p, k_values[idx], k_next, c))
             g_values.append(self.calc_lower_tangent_angle(curr, next_p, c))
             i_values.append(self.calc_cumulative_angle(g_values[idx], e_values[idx]))
         s_values = []
@@ -452,16 +473,21 @@ class GearBaseService:
 
     def calc_install_position(self, pulleys: List[Dict], tensioner_code: str,
                               pivot_x: float, pivot_y: float,
-                              install_angle: float, rotation: str) -> Dict:
+                              install_angle: float, rotation: str,
+                              belt_height: float = 0,
+                              last_install_type: str = 'groove',
+                              work_tensioner_x: Optional[float] = None,
+                              work_tensioner_y: Optional[float] = None) -> Dict:
         """
         计算张紧器安装位置的皮带长度和张紧轮XY坐标。
 
         安装位置 = 当前张紧轮(名义输入位置)沿臂弧旋转安装扭转角(install_angle)到达的位置。
+        安装位置为张紧方向（压紧皮带）的进一步旋转方向，因未安装皮带时臂可越过工作位置。
         对应 Excel 报告页121行 install 区域：
           F26 = F28(基准臂角) ± (C51-C50)(安装扭转角)
         旋转方向(cw/ccw)决定角度变化方向：
-          - cw：安装臂角 = 基准臂角 - install_angle
-          - ccw：安装臂角 = 基准臂角 + install_angle
+          - cw：安装臂角 = 基准臂角 + install_angle（沿张紧方向继续旋转）
+          - ccw：安装臂角 = 基准臂角 - install_angle（沿张紧方向继续旋转）
 
         返回安装位置的张紧轮XY、安装臂角、皮带长度、基准臂角、臂长。
         """
@@ -482,15 +508,25 @@ class GearBaseService:
         if arm_length < 1e-6:
             return {'error': '臂长为零'}
 
-        # 基准臂角（当前张紧轮位置，0-360°）
+        # 基准臂角：使用工作位置坐标计算（对应Excel F28=工作位置臂角）
+        # pulleys中TEN为短皮带位置坐标，工作位置坐标由前端单独传入
+        if work_tensioner_x is not None and work_tensioner_y is not None:
+            base_ref_x = float(work_tensioner_x)
+            base_ref_y = float(work_tensioner_y)
+        else:
+            base_ref_x = curr_x
+            base_ref_y = curr_y
         base_angle = self._normalize_angle(
-            math.degrees(math.atan2(curr_y - pivot_y, curr_x - pivot_x)))
+            math.degrees(math.atan2(base_ref_y - pivot_y, base_ref_x - pivot_x)))
 
         # 安装臂角
+        # 安装位置与张紧方向相反：张紧轮需要朝远离皮带的方向旋转以释放皮带
+        # 若张紧方向为cw（顺时针，角度增加），则安装位置应逆时针旋转（角度减少）
+        # 若张紧方向为ccw（逆时针，角度减少），则安装位置应顺时针旋转（角度增加）
         if rotation == 'cw':
-            install_arm_angle = base_angle - install_angle
+            install_arm_angle = base_angle - install_angle  # 角度减少（反向）
         else:  # ccw
-            install_arm_angle = base_angle + install_angle
+            install_arm_angle = base_angle + install_angle  # 角度增加（反向）
         install_arm_angle = self._normalize_angle(install_arm_angle)
 
         # 安装位置的张紧轮XY
@@ -503,6 +539,24 @@ class GearBaseService:
         pulleys_copy[tensioner_idx]['y'] = install_y
         install_belt_length = self.calc_belt_length_raw(pulleys_copy)
 
+        # 计算理论皮带长度（用于安装判断）
+        # 对应Excel: Input!G26 = IF(初始输入!L56="平轮", Geometry!G178+2*初始输入!C62, Geometry!G178)
+        # G178块使用短皮带位置的TEN坐标 + 修正后的节圆直径 K±offset
+        # offset = height + flat_to_pitch - pitch_to_effective = belt_height + belt_thickness - lining_thickness
+        # G26根据"最后套皮带"类型(初始输入!L56)决定是否加2*belt_height：
+        #   - 平轮: G178 + 2*belt_height
+        #   - 槽轮: G178（不加）
+        # 前端已将pulleys中TEN坐标替换为短皮带位置坐标
+        k_offset = belt_height + self.belt_thickness - self.lining_thickness
+        # 构造G178计算用的带轮：使用传入的pulleys（TEN为短皮带位置坐标）
+        g178_pulleys = copy.deepcopy(pulleys)
+        g178_length = self.calc_belt_length_raw(g178_pulleys, k_offset=k_offset)
+        # G26: 若最后套皮带为平轮，加2*belt_height；否则不加
+        is_flat_tensioner = last_install_type == 'flat'
+        theoretical_belt_length = g178_length
+        if is_flat_tensioner:
+            theoretical_belt_length += 2 * belt_height
+
         return {
             'install_tensioner_x': round(install_x, 4),
             'install_tensioner_y': round(install_y, 4),
@@ -511,5 +565,8 @@ class GearBaseService:
             'base_angle': round(base_angle, 4),
             'arm_length': round(arm_length, 4),
             'torsion_angle': round(install_angle, 4),
-            'rotation': rotation
+            'rotation': rotation,
+            'theoretical_belt_length': round(theoretical_belt_length, 4),
+            'is_flat_tensioner': is_flat_tensioner,
+            'belt_height': round(belt_height, 4),
         }

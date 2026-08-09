@@ -3,28 +3,35 @@ import { reactive } from 'vue'
 // 全局共享状态
 export const sharedStore = reactive({
   // 所有带轮数据（含直径、类型等完整信息）
+  // pitch_dia / effective_dia / flat_dia 对应 Excel 报告页的 Pitch / Effective / Flat 三列
   pulleys: [
-    { code: 'FAN', name: 'FAN', type: 'groove', x: 0, y: 0, groove_dia: 194, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: 0, perpendicularity: 0, tiltAngle: '' },
-    { code: 'ALT', name: 'ALT', type: 'groove', x: 250, y: -80, groove_dia: 75, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: 0, perpendicularity: 0, tiltAngle: '' },
-    { code: 'AC', name: 'AC', type: 'groove', x: 268, y: 132.5, groove_dia: 110, flat_dia: null, inertia: 0, service_factor: 1, rotation: 1, centerHeightDiff: 0, perpendicularity: 0.5, tiltAngle: '' },
-    { code: 'TEN', name: 'TEN', type: 'flat', x: 171.42, y: 17.35, groove_dia: null, flat_dia: 70, inertia: 0, service_factor: 1, rotation: -1, centerHeightDiff: 0, perpendicularity: 0.5, tiltAngle: '' }
+    { code: '', name: '', type: 'groove', x: null, y: null, pitch_dia: null, effective_dia: null, flat_dia: null, groove_dia: null, inertia: null, service_factor: null, rotation: 1, centerHeightDiff: 0, perpendicularity: 0, tiltAngle: '' },
+    { code: '', name: '', type: 'groove', x: null, y: null, pitch_dia: null, effective_dia: null, flat_dia: null, groove_dia: null, inertia: null, service_factor: null, rotation: 1, centerHeightDiff: 0, perpendicularity: 0, tiltAngle: '' },
+    { code: '', name: '', type: 'groove', x: null, y: null, pitch_dia: null, effective_dia: null, flat_dia: null, groove_dia: null, inertia: null, service_factor: null, rotation: 1, centerHeightDiff: 0, perpendicularity: 0, tiltAngle: '' }
   ],
   // 皮带参数（含 flat_to_pitch、pitch_to_effective 等）
   beltParams: {
-    flat_to_pitch: 1.5,
-    pitch_to_effective: 0.99
+    flat_to_pitch: null,
+    pitch_to_effective: null
   },
-  // 皮带完整参数
+  // 皮带完整参数（对齐 Excel 报告页第一页 Belt Data 字段）
   beltFullParams: {
+    belt_name: '',
     belt_type: '',
+    rib_type: '',
+    belt_material: '',
+    cord_material: '',
     manufacturer: '',
     ribs: null,
+    belt_height: null,
+    stretch_wear_allow: null,
+    flat_to_pitch: null,
+    pitch_to_effective: null,
     effective_length: null,
-    min_length: null,
-    max_length: null,
     length_tolerance: null,
-    elongation: null,
-    stretch: null
+    life_coefficient: null,
+    last_install_type: '',
+    belt_pk: null
   },
   // 皮带长度计算详细结果
   beltLengthResult: {
@@ -57,21 +64,36 @@ export const sharedStore = reactive({
     install_belt_length: null, base_angle: null, arm_length: null,
     torsion_angle: null, rotation: null
   },
-  // 张紧器参数
+  // 张紧器参数（对齐 Excel 报告页 Tensioner Data）
   tensioner: {
-    type: '',
+    type: 'Automatic',
     torque: null,
     angle: null,
-    arm_length: null
+    arm_length: null,
+    pivot_x: null,
+    pivot_y: null,
+    spring_stiffness: null,
+    design_tension: null,
+    damping: null,
+    nominal_angle: null,
+    install_angle: null,
+    stroke: null,
+    head_size: null
   },
-  // 项目表单信息
+  // 项目表单信息（对齐 Excel 报告页第一页 Project Information）
   formInfo: {
-    customer: '',
-    project: '',
+    file_no: '2026072002',
+    version: '02',
+    date: '2026-08-08',
+    customer: 'YAMAZ',
+    project: 'FEAD-652-FAN-9PK-EPDM-1391',
     cylinders: null,
     power: null,
+    layers: '',
     rated_speed: null,
-    idle_speed: null
+    idle_speed: null,
+    problem_statement: '1.The FAN has a risk of slipping.（only steady state）',
+    analysis_reference: 'FAN Power Update'
   },
   // 对齐度计算结果
   alignmentResults: [],
@@ -80,5 +102,82 @@ export const sharedStore = reactive({
   // 最后一个带轮序号
   lastPulleyIndex: 0,
   // Contact参数（每个带轮的K/J/L/M/N/P/O/Q/U）
-  contactParams: {}
+  contactParams: {},
+  // 清空所有设计数据（新建项目时调用）
+  resetAll() {
+    // 清空带轮数据：3行空值
+    this.pulleys.splice(0, this.pulleys.length)
+    for (let i = 0; i < 3; i++) {
+      this.pulleys.push({
+        code: '', name: '', type: 'groove',
+        x: null, y: null, pitch_dia: null, effective_dia: null,
+        flat_dia: null, groove_dia: null, inertia: null, service_factor: null,
+        rotation: 1, centerHeightDiff: 0, perpendicularity: 0, tiltAngle: ''
+      })
+    }
+    // 清空皮带参数（short form）
+    Object.assign(this.beltParams, {
+      flat_to_pitch: null,
+      pitch_to_effective: null
+    })
+    // 清空表单项
+    Object.assign(this.formInfo, {
+      file_no: '',
+      version: '01',
+      date: '',
+      customer: '',
+      project: '',
+      cylinders: null,
+      power: null,
+      layers: '',
+      rated_speed: null,
+      idle_speed: null,
+      problem_statement: '',
+      analysis_reference: ''
+    })
+    // 清空皮带参数
+    Object.assign(this.beltFullParams, {
+      belt_name: '',
+      belt_type: '',
+      rib_type: '',
+      belt_material: '',
+      cord_material: '',
+      manufacturer: '',
+      ribs: null,
+      belt_height: null,
+      stretch_wear_allow: null,
+      flat_to_pitch: null,
+      pitch_to_effective: null,
+      effective_length: null,
+      length_tolerance: null,
+      life_coefficient: null,
+      last_install_type: '',
+      belt_pk: null
+    })
+    // 清空张紧器参数
+    Object.assign(this.tensioner, {
+      type: 'Automatic',
+      torque: null,
+      angle: null,
+      arm_length: null,
+      pivot_x: null,
+      pivot_y: null,
+      spring_stiffness: null,
+      design_tension: null,
+      damping: null,
+      nominal_angle: null,
+      install_angle: null,
+      stroke: null,
+      head_size: null
+    })
+    // 清空计算结果
+    this.beltLengthResult = { belt_length: null, total_straight: null, total_arc: null, details: [] }
+    this.shortBeltResult = {}
+    this.longBeltResult = {}
+    this.freePositionResult = {}
+    this.installPositionResult = {}
+    this.alignmentResults = []
+    this.contactParams = {}
+    this.lastPulleyIndex = 0
+  }
 })
